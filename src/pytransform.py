@@ -19,7 +19,8 @@ plat_path = 'platforms'
 
 plat_table = (
     ('windows', ('windows', 'cygwin-*')),
-    ('darwin', ('darwin', 'ios')),
+    ('darwin', ('darwin',)),
+    ('ios', ('ios',)),
     ('linux', ('linux*',)),
     ('freebsd', ('freebsd*', 'openbsd*')),
     ('poky', ('poky',)),
@@ -31,6 +32,8 @@ arch_table = (
     ('arm', ('armv5',)),
     ('armv6', ('armv6l',)),
     ('armv7', ('armv7l',)),
+    ('ppc64', ('ppc64le',)),
+    ('mips32', ('mips',)),
     ('aarch32', ('aarch32',)),
     ('aarch64', ('aarch64', 'arm64'))
 )
@@ -123,10 +126,36 @@ def get_expired_days():
     return dlfunc()
 
 
-def get_hd_info(hdtype, size=256):
+@dllmethod
+def clean_obj(obj, kind):
+    prototype = PYFUNCTYPE(c_int, py_object, c_int)
+    dlfunc = prototype(('clean_obj', _pytransform))
+    return dlfunc(obj, kind)
+
+
+def clean_str(*args):
+    tdict = {
+        'str': 0,
+        'bytearray': 1,
+        'unicode': 2
+    }
+    for obj in args:
+        k = tdict.get(type(obj).__name__)
+        if k is None:
+            raise RuntimeError('Can not clean object: %s' % obj)
+        clean_obj(obj, k)
+
+
+def get_hd_info(hdtype, name=None):
+    if hdtype not in range(HT_DOMAIN + 1):
+        raise RuntimeError('Invalid parameter hdtype: %s' % hdtype)
+    size = 256
     t_buf = c_char * size
     buf = t_buf()
-    if (_pytransform.get_hd_info(hdtype, buf, size) == -1):
+    cname = c_char_p(0 if name is None
+                     else name.encode('utf-8') if hasattr('name', 'encode')
+                     else name)
+    if (_pytransform.get_hd_info(hdtype, buf, size, cname) == -1):
         raise PytransformError('Get hardware information failed')
     return buf.value.decode()
 
@@ -135,8 +164,30 @@ def show_hd_info():
     return _pytransform.show_hd_info()
 
 
+def assert_armored(*names):
+    prototype = PYFUNCTYPE(py_object, py_object)
+    dlfunc = prototype(('assert_armored', _pytransform))
+
+    def wrapper(func):
+        def wrap_execute(*args, **kwargs):
+            dlfunc(names)
+            return func(*args, **kwargs)
+        return wrap_execute
+    return wrapper
+
+
+def check_armored(*names):
+    try:
+        prototype = PYFUNCTYPE(py_object, py_object)
+        prototype(('assert_armored', _pytransform))(names)
+        return True
+    except RuntimeError:
+        return False
+
+
 def get_license_info():
     info = {
+        'ISSUER': None,
         'EXPIRED': None,
         'HARDDISK': None,
         'IFMAC': None,
@@ -146,6 +197,11 @@ def get_license_info():
         'CODE': None,
     }
     rcode = get_registration_code().decode()
+    if rcode.startswith('*VERSION:'):
+        index = rcode.find('\n')
+        info['ISSUER'] = rcode[9:index].split('.')[0].replace('-sn-1.txt', '')
+        rcode = rcode[index+1:]
+
     index = 0
     if rcode.startswith('*TIME:'):
         from time import ctime
@@ -154,8 +210,8 @@ def get_license_info():
         index += 1
 
     if rcode[index:].startswith('*FLAGS:'):
-        info['FLAGS'] = 1
         index += len('*FLAGS:') + 1
+        info['FLAGS'] = ord(rcode[index - 1])
 
     prev = None
     start = index
@@ -176,6 +232,10 @@ def get_license_info():
 
 def get_license_code():
     return get_license_info()['CODE']
+
+
+def get_user_data():
+    return get_license_info()['DATA']
 
 
 def _match_features(patterns, s):
@@ -208,7 +268,7 @@ def format_platform(platid=None):
     if plat == 'linux':
         cname, cver = platform.libc_ver()
         if cname == 'musl':
-            plat = 'alpine'
+            plat = 'musl'
         elif cname == 'libc':
             plat = 'android'
         elif cname == 'glibc':
@@ -230,7 +290,7 @@ def format_platform(platid=None):
 
 
 # Load _pytransform library
-def _load_library(path=None, is_runtime=0, platid=None, suffix=''):
+def _load_library(path=None, is_runtime=0, platid=None, suffix='', advanced=0):
     path = os.path.dirname(__file__) if path is None \
         else os.path.normpath(path)
 
@@ -247,7 +307,9 @@ def _load_library(path=None, is_runtime=0, platid=None, suffix=''):
     else:
         raise PytransformError('Platform %s not supported' % plat)
 
-    if platid is not None or not os.path.exists(filename) or not is_runtime:
+    if platid is not None and os.path.isfile(platid):
+        filename = platid
+    elif platid is not None or not os.path.exists(filename) or not is_runtime:
         libpath = platid if platid is not None and os.path.isabs(platid) else \
             os.path.join(path, plat_path, format_platform(platid))
         filename = os.path.join(libpath, os.path.basename(filename))
@@ -258,7 +320,9 @@ def _load_library(path=None, is_runtime=0, platid=None, suffix=''):
     try:
         m = cdll.LoadLibrary(filename)
     except Exception as e:
-        raise PytransformError('Load %s failed:\n%s' % (filename, e))
+        if sys.flags.debug:
+            print('Load %s failed:\n%s' % (filename, e))
+        raise
 
     # Removed from v4.6.1
     # if plat == 'linux':
@@ -274,8 +338,8 @@ def _load_library(path=None, is_runtime=0, platid=None, suffix=''):
         m.set_option(3, c_char_p(1))
     m.set_option(4, c_char_p(not is_runtime))
 
-    # Disable advanced mode if required
-    # m.set_option(5, c_char_p(1))
+    # Disable advanced mode by default
+    m.set_option(5, c_char_p(not advanced))
 
     # Set suffix for private package
     if suffix:
@@ -284,18 +348,25 @@ def _load_library(path=None, is_runtime=0, platid=None, suffix=''):
     return m
 
 
-def pyarmor_init(path=None, is_runtime=0, platid=None, suffix=''):
+def pyarmor_init(path=None, is_runtime=0, platid=None, suffix='', advanced=0):
     global _pytransform
-    _pytransform = _load_library(path, is_runtime, platid, suffix)
+    _pytransform = _load_library(path, is_runtime, platid, suffix, advanced)
     return init_pytransform()
 
 
-def pyarmor_runtime(path=None, suffix=''):
+def pyarmor_runtime(path=None, suffix='', advanced=0):
+    if _pytransform is not None:
+        return
+
     try:
-        pyarmor_init(path, is_runtime=1, suffix=suffix)
+        pyarmor_init(path, is_runtime=1, suffix=suffix, advanced=advanced)
         init_runtime()
     except Exception as e:
-        raise PytransformError(e)
+        if sys.flags.debug or hasattr(sys, '_catch_pyarmor'):
+            raise
+        sys.stderr.write("%s\n" % str(e))
+        sys.exit(1)
+
 
 # ----------------------------------------------------------
 # End of pytransform

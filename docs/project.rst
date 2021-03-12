@@ -13,6 +13,8 @@ There are several advantages to manage obfuscated scripts by Project:
 * Obfuscate the scripts with different modes
 * More convenient to manage obfuscated scripts
 
+.. _managing obfuscated scripts with project:
+
 Managing Obfuscated Scripts With Project
 ----------------------------------------
 
@@ -48,6 +50,16 @@ folder will not be obfuscated::
 
     pyarmor config --manifest "include *.py, prune dist, prune test"
 
+The data files also could be listed in manifest, and they will be copied to
+output path when building the project. For example::
+
+    pyarmor config --manifest "include *.py, include config.json"
+    pyarmor build
+
+By ``--manifest``, the project scripts could be selected exactly, more
+information refer to the description of the attribute `manifest` in the section
+`Project Configuration File`_
+
 Force rebuild::
 
     pyarmor build --force
@@ -74,6 +86,40 @@ First configure the different modes, refer to :ref:`The Modes of Obfuscated Scri
 Then obfuscating scripts in new mode::
 
     pyarmor build -B
+
+.. _obfuscating some special scripts with child project:
+
+Obfuscating Some Special Scripts With Child Project
+---------------------------------------------------
+
+Suppose most of scripts in the project are obfuscated with restrict mode 3, but
+a few of them need to be obfuscated with restrict mode 2. The child project is
+right for this case.
+
+1. First create a project in the source path::
+
+    cd /path/to/src
+    pyarmor init --entry foo.py
+    pyarmor config --restrict 3
+
+2. Next clone the project configuration file to create a child project named
+   `.pyarmor_config-1`::
+
+    cp .pyarmor_config .pyarmor_config-1
+
+3. Then config the child project with special scripts, no entry script, and
+   restrict mode 2::
+
+    pyarmor config --entry "" \
+                   --manifest "include a.py other/path/sa*.py" \
+                   --restrict 2 \
+                   .pyarmor_config-1
+
+4. Finally build the project and child project::
+
+    pyarmor build -B
+    pyarmor build --no-runtime -B .pyarmor_config-1
+
 
 .. _project configuration file:
 
@@ -104,11 +150,14 @@ Each project has a configure file. It's a json file named
 
         global-include *.py
 
-    It means all files anywhere in the `src` tree matching.
+    It means all `.py` files anywhere in the `src` tree matching.
 
     Multi manifest template commands are spearated by comma, for example::
 
         global-include *.py, exclude __mainfest__.py, prune test
+
+    The data files also could be selected by manifest, they'll be copied to
+    output path when building the project.
 
     Refer to
     https://docs.python.org/2/distutils/sourcedist.html#commands
@@ -122,7 +171,7 @@ Each project has a configure file. It's a json file named
     the path `output`
 
     When init a project and no ``--type`` specified, it will be set to 1 if
-    there is `__init__.py` in the path `src`, otherwise it's None.
+    entry script is `__init__.py`, otherwise it's None.
 
 * restrict_mode
 

@@ -3,37 +3,202 @@
 When Things Go Wrong
 ====================
 
-When there is in trouble, try to solve it by these ways.
+Some necessary knowledges and technicals are required to used pyarmor. Check
+this list, make sure you know them, and your question is not related to them.
 
-As running ``pyarmor``:
+.. _Necessary Knowledges:
 
-* Check the console output, is there any wrong path, or any odd information
-* Run `pyarmor` with debug option ``-d`` to get more information. For example::
+Necessary Knowledges
+--------------------
 
-      pyarmor -d obfuscate --recurisve foo.py
-      PYTHONDEBUG=y pyarmor -d obfuscate --recurisve foo.py
+Shell
+~~~~~
 
-As running the obfuscated scripts:
+pyarmor is a command line tool, it must be run in the shell or terminal. If you
+know nothing about shell command, use `pyarmor-webui`_ instead.
 
-* Turn on Python debug option by ``-d`` to print more information. For example::
+When command `pyarmor` complains of argument error, unknown option etc. Please
+use option ``-h`` to list all the available options, and fix command syntax
+error by these hints. For example::
+
+    pyarmor obfuscate -h
+
+Python
+~~~~~~
+
+How to run Python
+https://docs.python.org/3.8/tutorial/interpreter.html#using-the-python-interpreter
+
+Source Code Encoding
+~~~~~~~~~~~~~~~~~~~~
+
+If the obfuscated scripts print unexpected output, you need learn this
+
+https://docs.python.org/3.8/tutorial/interpreter.html#source-code-encoding
+
+Then set the right source code encoding in the scripts, first run the plain
+script to make sure everything is fine, then obfuscate the scripts again.
+
+
+Python Import System
+~~~~~~~~~~~~~~~~~~~~
+
+The obfuscated scripts need an extra :ref:`Runtime Package` to run, it's a
+common Python package, which could be imported as normal Python module or
+package. If it can't be imported correctly, for example, not distributed with
+the obfuscated scripts or stored in the wrong place, the obfuscated scripts may
+raise exceptions like this::
+
+   ModuleNotFoundError: No module named 'app.pytransform'
+
+This is not PyArmor's error, just Python can not find it. In this case, you need
+know Python how to import module, package, what's absolute import and relative
+import, you must know what's ``sys.path``
+
+https://docs.python.org/3.8/library/sys.html#sys.path
+
+The obfuscated script is a very simple Python script, the first line is an
+import statement, the second line is a function call. For any import or no
+module found error, for example::
+
+    ImportError: No module named model.NukepediaDB
+
+Just think it as a common python script, check whether the module, package or
+extension file locates in the right place according to Python Import System. If
+not, move the module, package or extension file to right path.
+
+Refer to the following official document or by search engineer to understand
+Python Import System
+
+https://docs.python.org/3.8/reference/simple_stmts.html#the-import-statement
+
+
+PyInstaller
+~~~~~~~~~~~
+
+If you'd like to pack the obfuscated scripts to one executable, and your project
+structure is complex, you must know `PyInstaller`_ and could pack your project
+by `PyInstaller`_ directly.
+
+https://pyinstaller.readthedocs.io/en/stable/usage.html
+
+
+Common Solutions
+----------------
+
+I have receive a lot of issues, most of them aren't pyarmor's defect, but use
+pyarmor in wrong way. So when you're in trouble with pyarmor, spending a few
+hours to understand pyarmor may solve the problem quickly. Self-help is better
+than help from others, it also could save time for both of us.
+
+First make sure you have read the basic guide :ref:`Using PyArmor`.
+
+Look through :ref:`Understanding Obfuscated Scripts`, especially the section
+:ref:`The Differences of Obfuscated Scripts`
+
+If you don't know how to use pyarmor in a special case, have a glance at the toc
+of :ref:`Advanced Topics`.
+
+Here are several common solutions
+
+* Upgrade pyarmor to latest stable version, please check :ref:`change logs`
+  before upgrading. If pyarmor works fine before, but now doesn't work, also
+  make a :ref:`clean uninstallation`, re-install pyarmor, and start everything
+  from refresh state.
+
+* As obfuscating the script by ``pyarmor``, check not only the last error
+  message, but also each log carefully to understand what pyarmor is doing, it's
+  very helpful to find the problem. And try to get more information by common
+  option ``-d``. For example::
+
+      pyarmor -d obfuscate --recursive foo.py
+
+* As running the obfuscated scripts, turn on Python debug option by ``-d`` to
+  print more information. If there is line number and script name in the
+  traceback, check the source script around this line. Make sure it doesn't use
+  any feature changed by obfuscated scripts. For example::
 
       python -d obf_foo.py
-      PYTHONDEBUG=y python obf_foo.py
 
-After python debug option is on, there will be a log file `pytransform.log`
-generated in the current path, which includes more debug information.
+* If you distribute the obfuscated scripts in different platform or docker, make
+  sure the related cross platform options are set. Because the obfuscated
+  scripts include binary library, it's platform dependent, and Python version in
+  target must be same as the version to obfuscate the scripts.
+
+* If you are using command :ref:`pack`, make sure PyInstaller could pack the
+  plain scripts directly and the final bundle works.
+
+* If you are using the scripts obfuscated by :ref:`Restrict mode` 3 or more, try
+  to use the default restrict mode. If low restrict mode works, check the
+  scripts make sure they don't violate the restrict mode.
+
+* Understanding pyarmor by doing a test in a few minutes if something you're not
+  sure.
+
+The default option of pyarmor works for common cases, but for complex cases, you
+need understand the different options for each command. First list all available
+options of ``obfuscate`` by option ``-h``::
+
+    pyarmor obfuscate -h
+
+You may find the desired option by its short description. If you're not sure, go
+to :ref:`Man Page` to read the details of each option.
+
+Maybe the simplest way to understand an option is, do a test in one minute. For
+example, the option ``--bootstrap`` is used to control how to generate the
+bootstrap code for obfuscated scripts, do tests in a fresh path like this::
+
+  cd /path/to/test
+  mkdir case-1
+  cd case-1
+  echo "print('Hello')" > foo.py
+  pyarmor obfuscate --bootstrap 2 foo.py
+  ls dist/
+  cat dist/foo.py
+
+  cd /path/to/test
+  mkdir case-2
+  cd case-2
+  echo "print('Hello')" > foo.py
+  pyarmor obfuscate --bootstrap 3 foo.py
+  ls dist/
+  cat dist/foo.py
+
+You can combine different options to do similar tests, it could help you
+understand pyarmor quickly.
+
+.. note::
+
+   There are a lot of reporeted `issues`_, search here first try to find same
+   issue.
 
 
 Segment fault
 -------------
 
-In the following cases, obfuscated scripts will crash
+In the following cases, obfuscated scripts may crash
 
-* Running obfuscated script by the debug version Python
-* Obfuscating scripts by Python 2.6 but running the obfuscated scripts by Python 2.7
+* Running obfuscated script by debug version Python
+* Obfuscating scripts by Python X.Y but running the obfuscated scripts by
+  different Python version M.N
+* Running the scripts in different platform but obfuscate them without option
+  ``--platform``
 
-After PyArmor 5.5.0, some machines may be crashed because of advanced mode. A
-quick workaround is to disable advanced mode by editing the file
+  - Docker, it's Alpine Linux, in PyArmor, the platform name is `musl.x86_64`,
+    not `linux.x86_64`
+  - In Windows, 32-bit Windows is different from 64-bit Windows
+  - In 64-bit Windows, 32-bit Python is different from 64-bit Python
+
+* Read ``co_code`` or other attributes of the obfuscated code object by any way,
+  some third packages may analysis the byte code to do something.
+* Importing the scripts obfuscated by restrict mode 3 and more in non-obfuscated
+  script may crash. It also may crash if it's obfuscated by ``obf-code=0``
+* Mixing the scripts obfuscated by different option ``--advanced``
+* In MacOS, the core library of pyarmor is linked to standard system Python, for
+  others, use ``install_name_tool`` to change ``rpath`` to adapt this machine.
+
+For PyArmor 5.5.0 ~ 6.6.0, some machines may be crashed because of advanced
+mode. A quick workaround is to disable advanced mode by editing the file
 :file:`pytransform.py` which locates in the installed path of ``pyarmor`` , in
 the function ``_load_library``, uncomment about line 202. The final code looks
 like this::
@@ -77,14 +242,7 @@ Still doesn't work, report an issue_
 
 ERROR: Unsupport platform linux.xxx
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-In some machines `pyarmor` could not recognize the platform and raise
-error. If there is available dynamic library in the table :ref:`The
-Others Prebuilt Libraries For PyArmor`. Just download it and save it
-in the path ``~/.pyarmor/platforms/SYSTEM/ARCH``, this command
-``pyarmor -d download`` will also display this path at the beginning.
-
-If there is no any available one, contact jondy.zhao@gmail.com if
-you'd like to run `pyarmor` in this platform.
+Please refer to :ref:`Support Platforms`
 
 
 /lib64/libc.so.6: version 'GLIBC_2.14' not found
@@ -127,6 +285,30 @@ Here are sample commands::
 
      pyarmor obfuscate --platform centos6.x86_64 foo.py
 
+'pyarmor' is not recognized issue
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+If `pyarmor` is installed by pip, please search "pyarmor" in the computer, then
+run full path pyarmor, or add path of pyarmor to environment variable PATH.
+
+If not by pip, the equivalent of the pyarmor command is running Python script
+"pyarmor.py" found in the distribution folder.
+
+__snprintf_chk: symbol not found
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+When run pyarmor in some dockers, it may raise this exception. Because these
+dockers are built with musl-libc, but the default ``_pytransform.so`` is built
+with glibc, ``__snprintf_chk`` is missed in the musl-libc.
+
+In this case, try to download the corresponding dynamic library
+
+For x86/64
+http://pyarmor.dashingsoft.com/downloads/latest/alpine/_pytransform.so
+
+For ARM
+http://pyarmor.dashingsoft.com/downloads/latest/alpine.arm/_pytransform.so
+
+And overwrite the old one which filename could be found in the traceback.
+
 
 Obfuscating Scripts Problem
 ---------------------------
@@ -144,18 +326,30 @@ instructions will be changed to::
     JMP 11
 
 In this case, it's complex to obfuscate the code object with wrap
-mode. So the code object is left as it's, but all the other code
-objects still are obfuscated.
-
-In later version, it will be obfuscated with non wrap mode.
+mode. So the code object is obfuscated with non wrap mode, but all the
+other code objects still are obfuscated with wrap mode.
 
 In current version add some unused code in this function so that the
 operand isn't the critical value may avoid this warning.
 
 .. note::
 
-   This has been fixed in v5.5.0.
+   Before v5.5.0, in this case the code object is left as it is.
 
+Code object could not be obufscated with advanced mode 2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Because this function includes some jump instructions that couldn't be
+handled. In this case, just refine this function, make sure the first statement
+will not generate jump instruction. For example, assignment, function call or
+any simple statement. However, the compound statements, for examples, `try`,
+`for`, `if`, `with`, `while` etc. will generate the jump instructions. If there
+is no anyway to refactor the function, insert the following statement at the
+beginning of this function::
+
+  [None, None]
+
+It will generate some instructions but doesn't change anything.
 
 Error: Try to run unauthorized function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -171,6 +365,28 @@ Add the exact source encode at the begin of the script. For example::
     # -*- coding: utf-8 -*-
 
 Refer to https://docs.python.org/2.7/tutorial/interpreter.html#source-code-encoding
+
+If the source encode has been added into main script, it still raises this
+issue. Please check the output log to find the exact script name, it may not the
+main script.
+
+
+Why plugin doesn't work
+~~~~~~~~~~~~~~~~~~~~~~~
+
+If the plugin script doesn't work as expected, first check the plugin script
+could be injected into the entry script by set Python debug flag::
+
+  # In linux
+  export PYTHONDEBUG=y
+  # In Windows
+  set PYTHONDEBUG=y
+
+  pyarmor obfuscate --exact --plugin check_ntp_time foo.py
+
+It will generate patched file ``foo.py.pyarmor-patched``, make sure the content
+of plugin script has been inserted into the right place, and the verify function
+will be executed.
 
 
 Running Obfuscated Scripts Problem
@@ -194,26 +410,31 @@ again.
 
 NameError: name '__pyarmor__' is not defined
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-No :ref:`Bootstrap Code` are executed before importing obfuscated
-scripts.
+No :ref:`Bootstrap Code` are executed before importing obfuscated scripts.
 
-When creating new process by `Popen` or `Process` in mod `subprocess`
-or `multiprocessing`, to be sure that :ref:`Bootstrap Code` will be
-called before importing any obfuscated code in sub-process. Otherwise
-it will raise this exception.
+* When creating new process by `Popen` or `Process` in mod `subprocess` or
+  `multiprocessing`, to be sure that :ref:`Bootstrap Code` will be called before
+  importing any obfuscated code in sub-process. Otherwise it will raise this
+  exception.
+* If `pytransform.py` or `pytransform/__init__.py` raises this exception. Make
+  sure it is not obfuscated, it must be plain script.
+* Also check system module `os`, `ctypes`, make sure they're not obfuscated, try
+  to use option ``--exclude`` to exclude the whole Python system library path.
 
 
 Marshal loads failed when running xxx.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Check whether the version of Python to run obfuscated scripts is
-   same as the version of Python to obfuscate script
+1. Check whether the version of Python to run obfuscated scripts is same as the
+   version of Python to obfuscate script
 
 2. Run obfuscated script by `python -d` to show more error message.
 
-3. Be sure the capsule used to generated the license file is same as
-   the capsule used to obfuscate the scripts. The filename of the
-   capsule will be shown in the console when the command is running.
+3. Be sure the capsule used to generated the license file is same as the capsule
+   used to obfuscate the scripts. The filename of the capsule will be shown in
+   the console when the command is running.
 
+4. For cross platform obfuscation, make sure the dynamic library feature is set
+   correctly, refer to :ref:`Obfuscating scripts with different features`
 
 _pytransform can not be loaded twice
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -261,6 +482,11 @@ can't be changed any more. Do not touch the following files
 
 * pytransform.py
 * _pytransform.so/.dll/.dylib
+
+If the entry script is obfuscated by new version, but the runtime files are
+still old, it may raise this exception. Using option ``--no-cross-protection``
+to disable this protection, or using option ``--runtime`` to specify the same
+runtime files when obfuscating the scrpits, could fix this issue.
 
 For more information, refer to :ref:`Special Handling of Entry Script`
 
@@ -317,9 +543,108 @@ to `linux.armv7.0`. For examples::
     pyarmor obfuscate foo.py
     pyarmor build
 
+How to customize error message
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+I have started to play around with pyarmor. When using a license file that
+expires you get the message “License is expired”. Is there a way to change this
+message?
+
+At this time, you need patch the source script `pytransform.py` in the pyarmor
+package. There is a function `pyarmor_runtime`
+
+.. code:: python
+
+    def pyarmor_runtime(path=None, suffix='', advanced=0):
+        ...
+        try:
+            pyarmor_init(path, is_runtime=1, suffix=suffix, advanced=advanced)
+            init_runtime()
+        except Exception as e:
+            if sys.flags.debug or hasattr(sys, '_catch_pyarmor'):
+                raise
+            sys.stderr.write("%s\n" % str(e))
+            sys.exit(1)
+
+Change the hanler of the exception as you desired.
+
+If the scripts are obfuscated by super mode, this solution doesn't work. You may
+create a script to catch exceptions raised by obfuscated script `foo.py`. For
+example
+
+.. code:: python
+
+   try:
+       import foo
+   except Exception as e:
+       print('something is wrong')
+
+By this way not only the exceptions of pyarmor but also of normal scripts are
+catched. In order to handle the exceptions of pyarmor only, first create runtime
+package by :ref:`runtime`, and obfuscate the scripts with it::
+
+    pyarmor runtime --advanced 2 -O dist
+    pyarmor obfuscate --advanced 2 --runtime @dist foo.py
+
+Then create a boot script ``dist/foo_boot.py`` like this
+
+.. code:: python
+
+   try:
+       import pytransform_bootstrap
+   except Exception as e:
+       print('something is wrong')
+   else:
+       import foo
+
+The script ``dist/pytransform_bootstrap.py`` is created by :ref:`runtime`, it's
+obfuscated from an empty script, so only pyarmor bootstrap exceptions are raised
+by it.
+
+
+undefined symbol: PyUnicodeUCS4_AsUTF8String
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If Python interpreter is built with UCS2, it may raises this issue when running
+super mode obufscated scripts. In this case, try to obfuscate script with
+platform ``centos6.x86_64``, it's built with UCS2. For example::
+
+    pyarmor obfuscate --advanced 2 --platform centos6.x86_64 foo.py
+
+
+NameError: name '__armor_wrap__' is not defined
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If :ref:`Restrict Mode` is set to 4 or 5, it may report this issue. In this case
+try to set restrict mode to 2.
+
 
 Packing Obfuscated Scripts Problem
 ----------------------------------
+
+The final bundle does not work
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+First make sure the scripts could pack by PyInstaller directly and the final
+bundle works.
+
+Then make sure the obfuscated scripts could work without packing.
+
+If both of them OK, remove the output path `dist` and PyInstaller cached path
+`build`, then pack the script with ``--debug``::
+
+    pyarmor pack --debug foo.py
+
+The build files will be kept, the patched `foo-patched.spec` could be used by
+pyinstaller to pack the obfuscated scripts directly, for example::
+
+    pyinstaller -y --clean foo-patched.spec
+
+Check this patched `.spec` and change options in this `.spec` file, make sure
+the final bundle could work.
+
+Also refer to :ref:`repack pyinstaller bundle with obfuscated scripts`, make
+sure it works by this way.
 
 No module name pytransform
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -330,6 +655,18 @@ If report this error as running command `pyarmor pack`:
 
     pyarmor pack --clean foo.py
 
+NameError: name ‘__pyarmor__’ is not defined
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Check the traceback to find which script raises this exception, it's helpful to
+find the problem:
+
+* If `pytransform.py` or `pytransform/__init__.py` raises this exception. Make
+  sure it is not obfuscated, it must be plain script.
+* Also check system module `os`, `ctypes`, make sure they're not obfuscated. In
+  this case, try to exclude the Python system library path, refer to :ref:`pack`
+* Try to only copy your own scripts to an empty path, then pack it in this path.
+* If it works in trial version, but fails after pyarmor is registered, try to
+  make a :ref:`clean uninstallation`
 
 PyArmor Registration Problem
 ----------------------------
@@ -339,9 +676,43 @@ Purchased pyarmor is not private
 Even obfuscated with purchased version, license from trial version works:
 
 * Make sure command `pyarmor register` shows correct registration information
-* Make sure :ref:`global capsule` file `~/.pyarmor_capsule.zip` is same as the one in the keyfile `pyarmor-regfile-1.zip`
+* Make a :ref:`clean uninstallation`, and register again
+* Make sure the current user is same as the one to register pyarmor
+* Make sure environment variable `PYARMOR_HOME` is not set
 * Try to reboot system.
 
+Could not query registration information
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+I tried to register in pyarmor with using the command and log::
+
+    ~ % pyarmor register pyarmor-regfile-1.zip
+    INFO     PyArmor Version 6.5.2
+    INFO     Start to register keyfile: pyarmor-regfile-1.zip
+    INFO     Save registration data to: /Users/Jondy/.pyarmor
+    INFO     Extracting license.lic
+    INFO     Extracting .pyarmor_capsule.zip
+    INFO     This keyfile has been registered successfully.
+
+Watching whether I am registered, I got this output::
+
+    ~ % pyarmor register
+    INFO     PyArmor Version 6.5.2
+    PyArmor Version 6.5.2
+    Registration Code: pyarmor-vax-000383
+    Because of internet exception, could not query registration information.
+
+Ping domain `api.dashingsoft.com`, make sure ip address is resolved like this::
+
+    ~ % ping api.dashingsoft.com
+
+    PING api.dashingsoft.com (119.23.58.77): 56 data bytes
+    Request timeout for icmp_seq 0
+    Request timeout for icmp_seq 1
+
+If not, add one line in the ``/etc/hosts``::
+
+    119.23.58.77 pyarmor.dashingsoft.com
 
 Known Issues
 ------------
@@ -366,5 +737,17 @@ structure of code object of python, how python interpreter each instruction. If
 someone of them start to reverse, he/she must step by step thousands of machine
 instruction, and research the algorithm by machine codes. So it's not an easy
 thing to reverse pyarmor.
+
+
+How to get receipt or invoice
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+MyCommerce handles all the sales of pyarmor
+
+Please get help from this page for order/recipt/invoice issue
+
+https://www.mycommerce.com/shopper-support/
+
+Or contact "ClientSupport@MyCommerce.com" directly
 
 .. include:: _common_definitions.txt

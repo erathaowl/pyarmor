@@ -18,13 +18,13 @@ mkdir -p ${workpath} || csih_error "Make workpath FAILED"
 
 csih_inform "Clean pyarmor data"
 rm -rf  ~/.pyarmor ~/.pyarmor_capsule.*
-[[ -n "$USERPROFILE" ]] && rm -rf "$USERPROFILE\\.pyarmor" "$USERPROFILE\\.pyarmor_capsule.*"
+[[ -n "$USERPROFILE" ]] && rm -rf "$USERPROFILE\\.pyarmor*"
 
 datafile=$(pwd)/data/pyarmor-data.tar.gz
 capsulefile=$(pwd)/data/pyarmor-test-0001.zip
 
 # Form v5.9.0, support PYARMOR_HOME
-workhome=${workpath}/home
+workhome=pyarmor_home
 export PYARMOR_HOME="$workhome"
 
 cd ${workpath}
@@ -61,7 +61,7 @@ echo ""
 
 csih_inform "1. Show version information"
 $PYARMOR --version >result.log 2>&1 || csih_bug "show version FAILED"
-check_file_exists $workhome/.pyarmor/license.lic
+check_file_exists $workhome/license.lic
 
 csih_inform "2. Obfuscate foo.py"
 $PYARMOR obfuscate examples/helloworld/foo.py >result.log 2>&1
@@ -81,7 +81,10 @@ check_return_value
 check_file_exists licenses/Joker/license.lic
 
 csih_inform "5. Run obfuscated foo.py with expired license"
-cp licenses/Joker/license.lic dist/pytransform
+$PYARMOR obfuscate --with-license licenses/Joker/license.lic \
+         examples/helloworld/foo.py >result.log 2>&1
+check_return_value
+
 (cd dist; $PYTHON foo.py >result.log 2>&1)
 check_return_value
 check_file_content dist/result.log "This license for Joker will be expired in"
@@ -120,7 +123,7 @@ check_file_content $PROPATH/obf/result.log 'This is first package'
 check_file_content $PROPATH/obf/result.log 'This is second package'
 
 csih_inform "8. Obfuscate scripts with advanced mode"
-$PYARMOR obfuscate --advanced --output dist-trial-advanced \
+$PYARMOR obfuscate --advanced 1 --output dist-trial-advanced \
          examples/simple/queens.py >result.log 2>&1
 check_return_value
 check_file_exists dist-trial-advanced/queens.py
@@ -138,7 +141,7 @@ while (( n < 36 )) ; do
 done
 echo "print('Hello world')" >> t32.py
 
-$PYARMOR obfuscate --advanced --output dist-trial-advanced-2 --exact t32.py >result.log 2>&1
+$PYARMOR obfuscate --advanced 1 --output dist-trial-advanced-2 --exact t32.py >result.log 2>&1
 check_file_content result.log 'In trial version the limitation is about'
 
 csih_inform "10. Run big array scripts"
@@ -147,8 +150,8 @@ $PYTHON -c"
 with open('$ascript', 'w') as f:
   for i in range(100):
     f.write('a{0} = {1}\n'.format(i, [1] * 1000))"
+
 $PYARMOR obfuscate --exact -O dist-big-array $ascript >result.log 2>&1
-check_file_content result.log 'Check license failed'
 check_file_content result.log 'Too big code object, the limitation is'
 
 csih_inform "11. Obfuscate big code object without wrap mode"
@@ -160,9 +163,8 @@ with open('big_array.py', 'w') as f:
   f.write('print(\"a99 = %s\" % a99)')"
 $PYARMOR init --src=. --entry=big_array.py -t app $PROPATH >result.log 2>&1
 $PYARMOR config --wrap-mode=0 --manifest="include big_array.py" $PROPATH >result.log 2>&1
-(cd $PROPATH; $ARMOR build >result.log 2>&1)
 
-check_file_content $PROPATH/result.log 'Check license failed'
+(cd $PROPATH; $ARMOR build >result.log 2>&1)
 check_file_content $PROPATH/result.log 'Too big code object, the limitation is'
 
 csih_inform "12. Obfuscate the scripts with option --enable-suffix"
@@ -241,9 +243,55 @@ with open('$ascript', 'w') as f:
   for i in range(200):
     f.write('def test_{0}(n):\n'.format(i))
     f.write('    return n + {0}\n'.format(i))"
+
 $PYARMOR obfuscate --exact -O dist-big-script $ascript >result.log 2>&1
-check_file_content result.log 'Check license failed'
 check_file_content result.log 'Too big code object, the limitation is'
+
+csih_inform "18. Get issuer of the obfuscate scripts"
+(cd dist;
+ $PYTHON -c"
+from pytransform import pyarmor_init, get_license_info
+pyarmor_init(is_runtime=1)
+licinfo = get_license_info()
+print('License code is %s' % licinfo['CODE'])
+print('Issuer is %s' % licinfo['ISSUER'])" > result.log 2>&1)
+
+check_return_value
+check_file_content dist/result.log 'License code is Joker'
+check_file_content dist/result.log 'Issuer is trial'
+
+csih_inform "19. Protect data file"
+dist=test-data-file
+$PYTHON -m helper.build_data_module protect_code2.pt > protect_data.py
+cat <<EOF > safedata.py
+import protect_data
+with protect_data.Safestr() as text:
+    print('Got data: %s' % text[:32])
+
+from pytransform import clean_str
+from sys import version_info as ver
+data = ('a' * 30) if ver[0] == 2 else (b'a' * 30).decode()
+clean_str(data)
+if (ver[0] * 10 + ver[1]) not in (30, 31, 32):
+    print(data)
+EOF
+
+$PYARMOR obfuscate --exact -O $dist safedata.py >result.log 2>&1
+$PYARMOR obfuscate --exact -O $dist --no-runtime --no-bootstrap \
+         --restrict 4 protect_data.py >result.log 2>&1
+
+(cd $dist; $PYTHON safedata.py >result.log 2>&1)
+check_return_value
+check_file_content $dist/result.log 'Got data: def protect_pytransform'
+check_file_content $dist/result.log 'aaaaaaaaaa' not
+
+csih_inform "20. Obfuscate scripts with --runtime"
+dist=test-with-runtime
+$PYARMOR obfuscate --runtime test-runtime-suffix -O $dist \
+         examples/simple/queens.py >result.log 2>&1
+(cd $dist; $PYTHON queens.py >result.log 2>&1)
+check_return_value
+check_file_content $dist/result.log 'Found 92 solutions'
 
 # ======================================================================
 #
@@ -255,16 +303,20 @@ echo ""
 echo "-------------------- Test Normal Version ------------------------"
 echo ""
 
-test_suffix="_unk_0001"
+test_suffix="_unk_000001"
 
 csih_inform "0. Register keyfile"
 $PYARMOR register data/pyarmor-test-0001.zip >result.log 2>&1
 check_return_value
-check_file_exists $workhome/.pyarmor/license.lic
+check_file_exists $workhome/license.lic
+
+$PYARMOR register >result.log 2>&1
+check_file_content result.log "PyArmor Trial" not
 
 csih_inform "1. Show version information"
 $PYARMOR --version >result.log 2>&1
 check_file_content result.log "pyarmor-test-0001"
+check_file_content result.log "PyArmor Trial" not
 
 csih_inform "2. Obfuscate foo.py"
 $PYARMOR obfuscate examples/helloworld/foo.py >result.log 2>&1
@@ -284,7 +336,10 @@ check_return_value
 check_file_exists licenses/Joker/license.lic
 
 csih_inform "5. Run obfuscated foo.py with expired license"
-cp licenses/Joker/license.lic dist/pytransform
+$PYARMOR obfuscate --with-license licenses/Joker/license.lic \
+         examples/helloworld/foo.py >result.log 2>&1
+check_return_value
+
 (cd dist; $PYTHON foo.py >result.log 2>&1)
 check_return_value
 check_file_content dist/result.log "This license for Joker will be expired in"
@@ -323,7 +378,7 @@ check_file_content $PROPATH/obf/result.log 'This is first package'
 check_file_content $PROPATH/obf/result.log 'This is second package'
 
 csih_inform "8. Obfuscate scripts with advanced mode"
-$PYARMOR obfuscate --advanced --output dist-advanced examples/simple/queens.py >result.log 2>&1
+$PYARMOR obfuscate --advanced 1 --output dist-advanced examples/simple/queens.py >result.log 2>&1
 check_return_value
 check_file_exists dist-advanced/queens.py
 
@@ -332,7 +387,7 @@ check_return_value
 check_file_content dist-advanced/result.log 'Found 92 solutions'
 
 csih_inform "9. Obfuscate scripts with advanced mode but more than 30 functions"
-$PYARMOR obfuscate --advanced --output dist-advanced-2 --exact t32.py >result.log 2>&1
+$PYARMOR obfuscate --advanced 1 --output dist-advanced-2 --exact t32.py >result.log 2>&1
 check_return_value
 check_file_exists dist-advanced-2/t32.py
 
@@ -450,17 +505,62 @@ check_return_value
 check_file_content result.log 'Check license failed' not
 check_file_content result.log 'Too big code object, the limitation is' not
 
+csih_inform "18. Get issuer of the obfuscate scripts"
+(cd dist;
+ $PYTHON -c"
+from pytransform import pyarmor_init, get_license_info
+pyarmor_init(is_runtime=1)
+licinfo = get_license_info()
+print('License code is %s' % licinfo['CODE'])
+print('Issuer is %s' % licinfo['ISSUER'])" > result.log 2>&1)
+
+check_return_value
+check_file_content dist/result.log 'License code is Joker'
+check_file_content dist/result.log 'Issuer is pyarmor-test-0001'
+
+csih_inform "19. Protect data file"
+dist=test-data-file
+$PYTHON -m helper.build_data_module protect_code2.pt > protect_data.py
+cat <<EOF > safedata.py
+import protect_data
+with protect_data.Safestr() as text:
+    print('Got data: %s' % text[:32])
+
+from pytransform import clean_str
+from sys import version_info as ver
+data = ('a' * 30) if ver[0] == 2 else (b'a' * 30).decode()
+clean_str(data)
+if (ver[0] * 10 + ver[1]) not in (30, 31, 32):
+    print(data)
+EOF
+
+$PYARMOR obfuscate --exact -O $dist safedata.py >result.log 2>&1
+$PYARMOR obfuscate --exact -O $dist --no-runtime --no-bootstrap \
+         --restrict 4 protect_data.py >result.log 2>&1
+
+(cd $dist; $PYTHON safedata.py >result.log 2>&1)
+check_return_value
+check_file_content $dist/result.log 'Got data: def protect_pytransform'
+check_file_content $dist/result.log 'aaaaaaaaaa' not
+
+csih_inform "20. Obfuscate scripts with --runtime"
+dist=test-with-runtime
+$PYARMOR obfuscate --runtime test-runtime-suffix -O $dist \
+         examples/simple/queens.py >result.log 2>&1
+(cd $dist; $PYTHON queens.py >result.log 2>&1)
+check_return_value
+check_file_exists $dist/pytransform${test_suffix}/__init__.py
+check_file_content $dist/result.log 'Found 92 solutions'
+
 # ======================================================================
 #
 # Finished and cleanup.
 #
 # ======================================================================
 
-echo "" && csih_inform "Remove global capsule"
+echo "" && csih_inform "Clean pyarmor data"
 rm -rf ~/.pyarmor_capsule.zip ~/.pyarmor
-if [[ -n "$USERPROFILE" ]] ; then
-   rm -rf "$USERPROFILE\\.pyarmor_capsule.zip" "$USERPROFILE\\.pyarmor"
-fi
+[[ -n "$USERPROFILE" ]] && rm -rf "$USERPROFILE\\.pyarmor*"
 
 # Return test root
 cd ../..

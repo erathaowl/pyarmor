@@ -1,10 +1,9 @@
-import os
 from sys import platform
 
-version = '5.9.3'
+version = '6.6.3'
 
-# The corresponding version of _pytransform.so
-core_version = 'r16.10'
+# The corresponding version of pytransform.so
+core_version = 'r42.16'
 
 version_info = '''
 PyArmor is a command line tool used to obfuscate python scripts, bind
@@ -15,7 +14,11 @@ For more information, refer to https://pyarmor.readthedocs.io
 
 purchase_info = '''
 
-If there is no registration code yet, please purchase one by visiting
+If there is no registration code yet, please purchase one by command
+
+    pyarmor register --buy
+
+Or open the following url in any webbrowser directly
 
 https://order.shareit.com/cart/add?vendorid=200089125&PRODUCT[300871197]=1
 
@@ -28,7 +31,7 @@ dll_ext = '.dylib' if platform == 'darwin' \
 
 entry_lines = 'from %spytransform%s import pyarmor_runtime\n', \
               'pyarmor_runtime(%s)\n'
-protect_code_template = 'protect_code.pt'
+protect_code_template = 'protect_code%s.pt'
 
 config_filename = '.pyarmor_config'
 capsule_filename = '.pyarmor_capsule.zip'
@@ -36,16 +39,14 @@ license_filename = 'license.lic'
 default_output_path = 'dist'
 default_manifest_template = 'global-include *.py'
 
-platform_urls = [
-    'https://github.com/dashingsoft/pyarmor-core/raw/%s/platforms' %
-    core_version,
-    'https://pyarmor.dashingsoft.com/downloads/%s' % core_version
-]
+platform_old_urls = (
+    'https://github.com/dashingsoft/pyarmor-core/raw/r41.15/platforms',
+    'https://pyarmor.dashingsoft.com/downloads/r41.15',
+)
 platform_config = 'index.json'
+platform_url = 'https://pyarmor.dashingsoft.com/files/{version}'
 
 key_url = 'https://api.dashingsoft.com/product/key/%s/query'
-
-PYARMOR_PATH = os.getenv('PYARMOR_PATH', os.path.dirname(__file__))
-PYARMOR_HOME = os.getenv('PYARMOR_HOME', os.path.expanduser('~'))
-
-DEFAULT_CAPSULE = os.path.join(PYARMOR_HOME, capsule_filename)
+reg_url = 'https://api.dashingsoft.com/product/key/activate/%s/'
+buy_url = 'https://order.shareit.com/cart/add?vendorid=200089125&PRODUCT[300871197]=1'
+help_url = 'https://pyarmor.readthedocs.io/{lang}/v%s/{page}' % version

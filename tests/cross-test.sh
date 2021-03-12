@@ -96,10 +96,11 @@ check_return_value
 check_file_content result.log "linux.x86_64._pytransform.so"
 
 csih_inform "Case CP-5: cross publish by project with custom cross protection"
-$SED -i -e 's/"cross_protection": [01]/"cross_protection": "protect_code.pt"/g' \
+echo "print('This is customized protection code')" > test_protect.pt
+$SED -i -e 's/"cross_protection": [01]/"cross_protection": "test_protect.pt"/g' \
     $PROPATH/.pyarmor_config >result.log 2>&1
 check_return_value
-check_file_content $PROPATH/.pyarmor_config "protect_code.pt"
+check_file_content $PROPATH/.pyarmor_config "test_protect.pt"
 
 $PYARMOR build -B --platform linux.x86_64 $PROPATH >result.log 2>&1
 check_return_value
@@ -130,9 +131,9 @@ check_file_exists $OUTPUT/pytransform/_pytransform.dll
 
 csih_inform "Case CR-2: cross runtime with one platform alpine.x86_64"
 rm -rf $OUTPUT
-$PYARMOR runtime --platform alpine.x86_64 >result.log 2>&1
+$PYARMOR runtime --platform musl.x86_64 >result.log 2>&1
 check_return_value
-check_file_content result.log "alpine/x86_64/0/_pytransform.so"
+check_file_content result.log "musl/x86_64/7/_pytransform.so"
 check_file_exists $OUTPUT/pytransform/_pytransform.so
 
 csih_inform "Case CR-3: cross runtime with one platform linux.armv7"
@@ -142,7 +143,7 @@ check_return_value
 check_file_content result.log "linux/armv7/3/_pytransform.so"
 check_file_exists $OUTPUT/pytransform/_pytransform.so
 
-csih_inform "Case CR-4: cross runtime with multi-platforms linux.armv7,linux.aarch32"
+csih_inform "Case CR-4: cross runtime with linux.armv7,linux.aarch32"
 rm -rf $OUTPUT
 $PYARMOR runtime --platform linux.armv7,linux.aarch32 >result.log 2>&1
 check_return_value
@@ -151,7 +152,7 @@ check_file_content result.log "linux/aarch32/3/_pytransform.so"
 check_file_exists $OUTPUT/pytransform/platforms/linux/armv7/_pytransform.so
 check_file_exists $OUTPUT/pytransform/platforms/linux/aarch32/_pytransform.so
 
-csih_inform "Case CR-5: cross runtime with multi-platforms linux.x86_64,darwin.x86_64,linux.aarch64"
+csih_inform "Case CR-5: cross runtime with linux.x86_64,darwin.x86_64,linux.aarch64"
 rm -rf $OUTPUT
 $PYARMOR runtime --platform linux.x86_64,darwin.x86_64,linux.aarch64 >result.log 2>&1
 check_return_value
@@ -162,19 +163,24 @@ check_file_exists $OUTPUT/pytransform/platforms/linux/x86_64/_pytransform.so
 check_file_exists $OUTPUT/pytransform/platforms/darwin/x86_64/_pytransform.dylib
 check_file_exists $OUTPUT/pytransform/platforms/linux/aarch64/_pytransform.so
 
-csih_inform "Case CR-6: cross runtime with multi-platforms linux.arm,windows.x86_64"
+csih_inform "Case CR-6: cross runtime with linux.arm,windows.x86_64.0"
 rm -rf $OUTPUT
-$PYARMOR runtime --platform linux.arm,windows.x86_64 >result.log 2>&1
+$PYARMOR runtime --platform linux.arm,windows.x86_64.0 >result.log 2>&1
 check_return_value
 check_file_content result.log "linux/arm/0/_pytransform.so"
 check_file_content result.log "windows/x86_64/0/_pytransform.dll"
 check_file_exists $OUTPUT/pytransform/platforms/linux/arm/_pytransform.so
 check_file_exists $OUTPUT/pytransform/platforms/windows/x86_64/_pytransform.dll
 
-csih_inform "Case CR-7: cross runtime with multi-platforms windows.x86,linux.x86_64,linux.arm"
+csih_inform "Case CR-7: cross runtime with windows.x86,linux.x86_64,linux.arm"
 rm -rf $OUTPUT
 $PYARMOR runtime --platform windows.x86,linux.x86_64,linux.arm >result.log 2>&1
-check_file_content result.log "No dynamic library found for linux.arm with features"
+check_file_content result.log "Multi platforms conflict, platform linux.arm"
+
+csih_inform "Case CR-8: cross runtime with linux.arm,windows.x86_64"
+rm -rf $OUTPUT
+$PYARMOR runtime --platform linux.arm,windows.x86_64 >result.log 2>&1
+check_file_content result.log "Multi platforms conflict, platform windows.x86_64.7"
 
 echo ""
 echo "-------------------- Test Cross Runtime END ------------------------"

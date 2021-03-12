@@ -38,7 +38,10 @@ the required files to run obfuscated scripts::
 
         pytransform/
             __init__.py
-            _pytransform.so, or _pytransform.dll in Windows, _pytransform.dylib in MacOS
+            _pytransform.so/.dll/.dylib
+
+Before v6.3, there are 2 extra files::
+
             pytransform.key
             license.lic
 
@@ -52,6 +55,28 @@ The entry script `dist/myscript.py` would be like this::
     from pytransform import pyarmor_runtime
     pyarmor_runtime()
     __pyarmor__(__name__, __file__, b'\x0a\x02...', 1)
+
+Super Obfuscated Scripts
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+If the scripts are obfuscated by :ref:`super mode`, it's totaly different. There
+is only one runtime file, that is extension module ``pytransform``. Only these
+files in the ``dist``::
+
+    myscript.py
+    mymodule.py
+
+    pytransform.so or pytransform.dll
+
+All the obfuscated scripts would be like this::
+
+    from pytransform import pyarmor
+    pyarmor(__name__, __file__, b'\x0a\x02...', 1)
+
+Or there is a suffix in extension name, for example::
+
+    from pytransform_vax_000001 import pyarmor
+    pyarmor(__name__, __file__, b'\x0a\x02...', 1)
 
 .. _entry script:
 
@@ -90,6 +115,11 @@ Since v5.8.7, the runtime package may has a suffix. For example::
     from pytransform_vax_000001 import pyarmor_runtime
     pyarmor_runtime(suffix='_vax_000001')
 
+For :ref:`super mode`, not only the entry script, but also the other obfuscated
+scripts include one line `Bootstrap Code`::
+
+    from pytransform import pyarmor
+
 .. _runtime package:
 
 Runtime Package
@@ -104,25 +134,40 @@ be moved anywhere. Only this package in any Python Path, the obfuscated scripts
 can be run as normal scripts. And all the scripts obfuscated by the same
 :ref:`Global Capsule` could share this package.
 
-There are 4 files in this package::
+There are 2 files in this package::
 
     pytransform/
         __init__.py                  A normal python module
         _pytransform.so/.dll/.lib    A dynamic library implements core functions
+
+Before v6.3.0, there are 2 extra files::
+
         pytransform.key              Data file
         license.lic                  The license file for obfuscated scripts
 
 Before v5.7.0, the runtime package has another form `Runtime Files`
+
+For :ref:`super mode`, both `runtime package`_ and `runtime files`_ now refer to
+the extension module ``pytransform``. In different platforms or different Python
+version, it has different name, for example::
+
+      pytransform.pyd
+      pytransform.so
+      pytransform.cpython-38-darwin.so
+      pytransform.cpython-38-x86_64-linux-gnu.so
 
 .. _runtime files:
 
 Runtime Files
 ~~~~~~~~~~~~~
 
-They're not in one package, but as four separated files::
+They're not in one package, but as 2 separated files::
 
     pytransform.py               A normal python module
     _pytransform.so/.dll/.lib    A dynamic library implements core functions
+
+Before v6.3.0, there are 2 extra files::
+
     pytransform.key              Data file
     license.lic                  The license file for obfuscated scripts
 
@@ -143,7 +188,7 @@ The License File for Obfuscated Script
 --------------------------------------
 
 There is a special runtime file `license.lic`, it's required to run the
-obfuscated scripts.
+obfuscated scripts. Since v6.3.0, it may be embedded into the dynamic library.
 
 When executing ``pyarmor obfuscate``, a default one will be generated, which
 allows obfuscated scripts run in any machine and never expired.
@@ -169,6 +214,8 @@ Key Points to Use Obfuscated Scripts
 * The `runtime package`_ must be in any Python Path, so that the `bootstrap
   code`_ can run correctly.
 
+The following notes are only apply to non-super mode
+
 * The `bootstrap code`_ will load dynamic library `_pytransform.so/.dll/.dylib`
   by `ctypes`. This file is dependent-platform, all the prebuilt dynamic
   libraries list here :ref:`Support Platforms`
@@ -181,9 +228,6 @@ Key Points to Use Obfuscated Scripts
 
     from pytransform import pyarmor_runtime
     pyarmor_runtime('/path/to/runtime')
-
-  Both of runtime files `license.lic` and `pytransform.key` should be in this
-  path either.
 
 * When starts a fresh python interpreter process by `multiprocssing.Process`,
   `os.exec`, `subprocess.Popen` etc., make sure the `bootstrap code`_ are called
@@ -198,13 +242,11 @@ The Differences of Obfuscated Scripts
 
 There are something changed after Python scripts are obfuscated:
 
-* The major/minor version of Python in build machine should be same as
-  in target machine. Because the scripts will be compiled to byte-code
-  before they're obfuscated, so the obfuscated scripts can't be run by
-  all the Python versions as the original scripts could. Especially
-  for Python 3.6, it introduces word size instructions, and it's
-  totally different from Python 3.5 and before. It's recommeded to run
-  the obfuscated scripts with same major and minor version of Python.
+* The obfsucated scripts are bind to Python major/minor version. For example, if
+  it's obfuscated by Python 3.6, it must run by Python 3.6. It doesn't work for
+  Python 3.5
+
+* The obfuscated scripts are platform-dependent.
 
 * If Python interpreter is compiled with Py_TRACE_REFS or Py_DEBUG, it
   will crash to run obfuscated scripts.
@@ -213,12 +255,12 @@ There are something changed after Python scripts are obfuscated:
   ``threading.settrace`` and ``threading.setprofile`` will be ignored by
   obfuscated scripts.
 
-* Some function in the module ``inspect`` may not work, and any other
-  module or package may not work if it visits the source or byte code
-  of the obfuscated scripts.
+* Any module for example ``inspect`` may not work if it try to visit the byte
+  code, or some attributes of code objects in the obfuscated scripts.
 
-* It will crash to visit the attribute ``co_const`` of code object
-  directly if the script is obfuscated in advanced mode.
+* If the exception is raised, the line number in the traceback may be
+  different from the original script, especially this script has been
+  patched by plugin script or cross protection code.
 
 * The attribute ``__file__`` of code object in the obfuscated scripts
   will be ``<frozen name>`` other than real filename. So in the
@@ -236,6 +278,13 @@ There are something changed after Python scripts are obfuscated:
       # The output will be '<frozen foo>'
       print(hello.__file__)
 
+* In super mode, builtin functions `dirs()`, `vars()` don't work if no argument,
+  call it by this way::
+
+       dirs() => sorted(locals().keys())
+       vars() => locals()
+
+  Note that `dirs(x)`, `vars(x)` still work if x is not None.
 
 About Third-Party Interpreter
 -----------------------------

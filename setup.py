@@ -20,7 +20,8 @@ pyarmor_data_files = [
     'LICENSE', 'LICENSE-ZH',
     'pyshield.key', 'pyshield.lic', 'public.key',
     'product.key', 'license.tri', 'README.rst',
-    'protect_code.pt', 'public_capsule.zip',
+    'protect_code.pt', 'protect_code2.pt', 'public_capsule.zip',
+    'plugins/README.md', 'plugins/check_ntp_time.py',
     'examples/README.md', 'examples/README-ZH.md',
     'examples/*.sh', 'examples/*.bat',
     'examples/simple/*.py', 'examples/testmod/*.py',
@@ -31,7 +32,6 @@ pyarmor_data_files = [
 ]
 
 platform_data_files = [
-    'platforms/index.json',
     'platforms/windows/x86/_pytransform.dll',
     'platforms/windows/x86_64/_pytransform.dll',
     'platforms/linux/x86/_pytransform.so',
@@ -105,7 +105,7 @@ setup(
     # Note that this is a string of words separated by whitespace, not a list.
     keywords='protect obfuscate encrypt obfuscation distribute',
 
-    packages=['pyarmor', 'pyarmor.polyfills'],
+    packages=['pyarmor', 'pyarmor.polyfills', 'pyarmor.helper'],
     package_dir={'pyarmor': 'src'},
     package_data={
         'pyarmor': pyarmor_data_files + platform_data_files,

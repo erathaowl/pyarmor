@@ -111,14 +111,7 @@ check_return_value
 
 dist=examples/simple/dist
 ( cd $dist/queens; ./queens  >result.log 2>&1 )
-
-check_file_exists $dist/queens/license.lic
 check_file_content $dist/queens/result.log 'Found 92 solutions'
-
-rm $dist/queens/license.lic
-( cd $dist/queens; ./queens  >result.log 2>&1 )
-check_file_content $dist/queens/result.log 'Found 92 solutions' not
-check_file_content $dist/queens/result.log 'No such file or directory'
 
 csih_inform "Case 3-2: Test option --name with PyInstaller"
 $PYARMOR pack --clean -O dist --name foo2 \
@@ -170,7 +163,7 @@ $PYTHON -m PyInstaller --clean -y --distpath $output main-patched.spec >result.l
 check_return_value
 
 (cd $output; ./main/main >result.log 2>&1)
-check_file_content $output/result.log "RuntimeError: Check restrict mode failed"
+check_file_content $output/result.log "RuntimeError: Check restrict mode of module failed"
 
 csih_inform "Case 3-6: Test the scripts is obfuscated with restrict mode 2"
 dist=test-pyinstaller-restrict-mode
@@ -178,8 +171,6 @@ $PYARMOR pack --output $dist -x " --restrict 2" examples/testpkg/main.py >result
 check_return_value
 
 ( cd $dist/main; ./main  >result.log 2>&1 )
-
-check_file_exists $dist/main/license.lic
 check_file_content $dist/main/result.log 'Hello! PyArmor Test Case'
 
 csih_inform "Case 3-7: Test runtime hook in the src path"
@@ -204,7 +195,6 @@ echo "print('Hello test --with-license')" > $dist/main.py
 (cd $dist; $PYTHON ../pyarmor.py pack --output dist \
                    --with-license fake-license.lic main.py >result.log 2>&1)
 check_return_value
-check_file_exists $dist/dist/main/license.lic
 
 ( cd $dist; dist/main/main  >result.log 2>&1 )
 check_file_content $dist/result.log 'Hello test --with-license' not
@@ -217,7 +207,6 @@ check_return_value
 
 $PYARMOR pack -O $project/dist $project >result.log 2>&1
 check_return_value
-check_file_exists $project/dist/queens/pytransform.key
 
 (cd $project/dist; ./queens/queens >result.log 2>&1)
 check_return_value
@@ -231,11 +220,56 @@ check_return_value
 mv $project/.pyarmor_config $project/test.json
 $PYARMOR pack -O $project/dist $project/test.json >result.log 2>&1
 check_return_value
-check_file_exists $project/dist/queens/pytransform.key
 
 (cd $project/dist; ./queens/queens >result.log 2>&1)
 check_return_value
 check_file_content $project/dist/result.log 'Found 92 solutions'
+
+csih_inform "Case 3-11: Test pack with an exists .spec file"
+dist=test-with-specfile
+mkdir $dist
+echo "print('Hello test with specfile')" > $dist/foo.py
+(cd $dist; pyi-makespec foo.py >result.log 2>&1)
+check_return_value
+check_file_exists $dist/foo.spec
+
+(cd $dist; $PYTHON ../pyarmor.py pack --output dist \
+                   -s foo.spec foo.py >result.log 2>&1)
+check_return_value
+check_file_exists $dist/dist/foo/foo
+
+( cd $dist; dist/foo/foo  >result.log 2>&1 )
+check_file_content $dist/result.log 'Hello test with specfile'
+
+csih_inform "Case 3-12: Test pack with non-ascii source path"
+dist=test-with-non-ascii-path
+project=$dist/中文路径
+mkdir -p $project
+echo "print('Hello test non-ascii path')" > $project/foo-zh.py
+$PYTHON pyarmor.py pack --output $dist/dist \
+        $project/foo-zh.py >result.log 2>&1
+check_return_value
+check_file_exists $dist/dist/foo-zh/foo-zh
+
+( cd $dist; dist/foo-zh/foo-zh  >result.log 2>&1 )
+check_file_content $dist/result.log 'Hello test non-ascii path'
+
+csih_inform "Case 3-13: Test super mode"
+$PYARMOR pack --clean --name sufoo -O dist-super-mode -x " --advanced 2" \
+         examples/simple/queens.py >result.log 2>&1
+check_return_value
+
+( cd dist-super-mode/; ./sufoo/sufoo  >result.log 2>&1 )
+check_file_content dist-super-mode/result.log 'Found 92 solutions'
+
+csih_inform "Case 3-14: Test super mode with license"
+$PYARMOR pack --clean --name sufoo -O dist-super-mode-2 -x " --advanced 2" \
+         --with-license license.tri examples/simple/queens.py >result.log 2>&1
+check_return_value
+
+( cd dist-super-mode-2/; ./sufoo/sufoo  >result.log 2>&1 )
+check_file_content dist-super-mode-2/result.log 'Found 92 solutions' not
+check_file_content dist-super-mode-2/result.log 'Check license failed, Invalid input packet'
 
 echo -e "\n------------------ PyInstaller End -----------------------\n"
 

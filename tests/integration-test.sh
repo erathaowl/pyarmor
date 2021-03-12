@@ -1,5 +1,10 @@
 #! /bin/bash
 
+#
+# DEPRECATED from v6.3.0, runtime files are embedded into dynamic
+# library, it doesn't work with old version
+#
+
 UNAME=$(uname)
 if [[ ${UNAME:0:5} == Linux ]] ; then
     if [[ $(arch) == x86_64 ]] ; then
@@ -841,6 +846,8 @@ grep -q "License is expired" result.log \
     || csih_bug "Case 5.4 FAILED: expired license still work"
 
 csih_inform "Case 5.5: generate bind file license"
+# --bind-file has been changed from v6.1.0
+if false; then
 $PYARMOR license --with-capsule=project.zip --bind-file id_rsa \
     -O license3.txt my_id_rsa >result.log 2>&1 \
     || csih_bug "Case 5.5 FAILED: return non-zero code"
@@ -855,8 +862,11 @@ cp license3.txt build/license.lic
 )
 grep -q "Result is 10" result.log \
     || csih_bug "Case 5.5 FAILED: python script returns unexpected result"
+fi
 
 csih_inform "Case 5.6: generate bind file license with expired date"
+# --bind-file has been changed from v6.1.0
+if false; then
 $PYARMOR license --with-capsule=project.zip -e $(next_month) \
     --bind-file id_rsa -O license4.txt my_id_rsa >result.log 2>&1 \
     || csih_bug "Case 5.6 FAILED: return non-zero code"
@@ -871,6 +881,7 @@ cp license4.txt build/license.lic
 )
 grep -q "Result is 10" result.log \
     || csih_bug "Case 5.6 FAILED: python script returns unexpected result"
+fi
 
 csih_inform "Case 5.7: generate license bind to mac address"
 $PYARMOR license --with-capsule=project.zip \

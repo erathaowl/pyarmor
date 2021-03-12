@@ -1,6 +1,9 @@
 #! /bin/bash
 
 SED=sed
+AWK=gawk
+SHA256SUM=sha256sum
+
 UNAME=$(uname)
 if [[ ${UNAME:0:5} == Linux ]] ; then
     if [[ $(arch) == x86_64 ]] ; then
@@ -19,6 +22,8 @@ else
         DLLEXT=.dylib
         ARMOR=./pyarmor
         SED=gsed
+        AWK=awk
+        SHA256SUM="shasum -a 256"
     else
         if [[ $(arch) == x86_64 ]] ; then
             PLATFORM=win_amd64
@@ -44,10 +49,13 @@ pkgfile=$(pwd)/${DIST}/pyarmor-${version}.${PKGEXT}
 
 declare -i _bug_counter=0
 
+PYARMOR_CORE_PLATFORM=~/workspace/pyarmor-core/platforms
+
 case ${PLATFORM} in
 
     win32)
         PYTHON=${PYTHON:-C:/Python26/python}
+        PYARMOR_CORE_PLATFORM=D:/projects/pyarmor-core/platforms
         declare -r harddisk_sn=013040BP2N80S13FJNT5
         declare -r ifmac_address=70:f1:a1:23:f0:94
         declare -r ifip_address=192.168.121.101
@@ -55,7 +63,8 @@ case ${PLATFORM} in
         ;;
     win_amd64)
         PYTHON=${PYTHON:-C:/Python26/python}
-        declare -r harddisk_sn=VBa2fd0ee8-4482c1ad
+        PYARMOR_CORE_PLATFORM=C:/workspace/pyarmor-core/platforms
+        declare -r harddisk_sn=BV2adfe08e4-84c2a1d
         declare -r ifmac_address=08:00:27:51:d9:fe
         declare -r ifip_address=192.168.121.112
         declare -r domain_name=
@@ -63,6 +72,7 @@ case ${PLATFORM} in
     linux_i386)
         PYTHON=${PYTHON:-python}
         declare -r harddisk_sn=VB07ab3ff6-81eb5787
+        declare -r ifname=enp0s3
         declare -r ifmac_address=08:00:27:88:4b:88
         declare -r ifip_address=192.168.121.106
         declare -r domain_name=
@@ -70,6 +80,7 @@ case ${PLATFORM} in
     linux_x86_64)
         PYTHON=${PYTHON:-python}
         declare -r harddisk_sn=9WK3FEMQ
+        declare -r ifname=eth0
         declare -r ifmac_address=00:23:8b:e0:4f:a7
         declare -r ifip_address=192.168.121.103
         declare -r domain_name=
@@ -403,4 +414,19 @@ clear_pyarmor_installed_data()
 {
     rm -rf  ~/.pyarmor ~/.pyarmor_capsule.*
     [[ -n "$USERPROFILE" ]] && rm -rf "$USERPROFILE\\.pyarmor" "$USERPROFILE\\.pyarmor_capsule.*"
+}
+
+# ======================================================================
+# Routine: update_pytransform_hash256
+#
+# ======================================================================
+update_pytransform_hash256()
+{
+    datafile=$1
+    libfile=$2
+    path=$3
+    if [ -f "$libfile" ] ; then
+        data=$(${SHA256SUM} ${libfile} | $AWK '{ print $1 }')
+        $SED -i -e "/\"path\": \"$path\"/,+6 s/\"sha256\":.*$/\"sha256\": \"$data\",/" $datafile
+    fi
 }

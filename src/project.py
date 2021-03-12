@@ -53,9 +53,9 @@ class Project(dict):
 
     VERSION = 2, 0
 
-    OBF_MODULE_MODE = 'none', 'des'
+    OBF_MODULE_MODE = 'none', 'des', 'aes'
 
-    OBF_CODE_MODE = 'none', 'des', 'fast', 'wrap'
+    OBF_CODE_MODE = 'none', 'fast', 'aes', 'wrap'
 
     DEFAULT_VALUE = \
         ('version', '.'.join([str(x) for x in VERSION])), \
@@ -69,7 +69,7 @@ class Project(dict):
         ('runtime_path', None), \
         ('restrict_mode', 1), \
         ('obf_code', 1), \
-        ('obf_mod', 1), \
+        ('obf_mod', 2), \
         ('wrap_mode', 1), \
         ('advanced_mode', 0), \
         ('bootstrap_code', 1), \
@@ -96,7 +96,8 @@ class Project(dict):
             return self._format_path(self[name])
         elif name == 'license_file':
             v = self[name] if name in self else None
-            return self._format_path(v) if v else None
+            return v if v in ('no', 'outer') \
+                else self._format_path(v) if v else None
         if name in self:
             return self[name]
         raise AttributeError(name)
@@ -123,8 +124,9 @@ class Project(dict):
             'The output path can not be same as src in the project'
 
         assert self.license_file is None \
+            or self.license_file == 'outer' \
             or self.license_file.endswith('license.lic'), \
-            'The output path can not be same as src in the project'
+            'Invalid license file'
 
     def _dump(self, filename):
         with open(filename, 'w') as f:

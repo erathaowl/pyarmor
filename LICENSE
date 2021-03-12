@@ -9,17 +9,17 @@
 
   2. The software is distributed as Free To Use But Restricted:
 
-     a. The maximum size of code object is about 32768 bytes in trial version
+     a. The trial version could not obfuscate the big scripts.
 
      b. The scripts obfuscated by trial version are not private. It
         means anyone could generate the license file which works for
         these obfuscated scripts.
 
-     c. Without permission the trial version may not be used for the Python
-        scripts of any commercial product.
+     c. The trial version could not download the latest dynamic library
+        of extra platforms, the old versions still are available.
 
-     d. In trial version the module could not be obfuscated by advanced mode if
-        there are more than about 30 functions (code objects) in this module.
+     d. Without permission the trial version may not be used for the Python
+        scripts of any commercial product.
 
   3. There are 2 basic types of licenses issued for the software. These are:
 
@@ -54,34 +54,39 @@
      the software on as many computers as defined by the licensing terms above
      according to the number of licenses purchased, for any legal purpose.
 
+     In any case, the software is only used to obfuscate the Python scripts
+     owned by the authorized person or enterprise. For example, if PyCharm
+     purchases one license, it's no problem to obufscate any Python script
+     of PyCharm self, but it's not allowed to apply this license to the Python
+     scripts just written in the PyCharm by someone else.
+
   4. There are no additional license fees, apart from the cost of the license,
      associated with the creation and distribution of obfuscated python scripts.
      Owners of a license may use their copies of the software to produce
      obfuscated python scripts and to distribute those files free of any
      additional royalties.
 
-  5. To buy a license, please visit the following url
+  5. To buy a license, please run command
+
+         pyarmor register --buy
+
+     Or open the following url in any web browser
 
          https://order.shareit.com/cart/add?vendorid=200089125&PRODUCT[300871197]=1
 
-     A registration keyfile generally named "pyarmor-regfile-1.zip" will be sent
-     to your by email immediately after payment is completed successfully. There
-     are 3 files in the archive:
+     A registration file generally named "pyarmor-regcode-1.txt" will be sent by
+     email immediately after payment is completed successfully.
 
-         * REAME.txt
-         * license.lic (registration code)
-         * .pyarmor_capsule.zip (private capsule)
+     Save it to disk, then run the following command to register PyArmor
 
-     Run the following command to take this keyfile effects:
+         pyarmor register /path/to/pyarmor-regcode-1.txt
 
-         pyarmor register /path/to/pyarmor-regfile-1.zip
-
-     Check the registeration information:
+     Check the registration information:
 
          pyarmor register
 
-     After the registration keyfile takes effect, you need obfuscate the scripts
-     again.
+     After registration successfully, remove all the obfuscated scripts by trial
+     version, then obfuscate them again.
 
      The registration code is valid forever, it can be used permanently. But it
      may not be rented or leased.

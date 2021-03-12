@@ -6,55 +6,134 @@ Support Platfroms
 The core of PyArmor is written by C, the prebuilt dynamic libraries
 include the common platforms and some embeded platforms.
 
-Some of them are distributed with PyArmor source package, in these
-platforms, `pyarmor` could run without downloading anything. Refer to
-`Prebuilt Libraries Distributed with PyArmor`_.
+Some of them are distributed with PyArmor source package. In these platforms,
+`pyarmor` could run without downloading anything::
 
-For the other platforms, `pyarmor` first searches path
-``~/.pyarmor/platforms/SYSTEM/ARCH``, ``SYSTEM.ARCH`` is one of
-`Standard Platform Names`_. If there is none, PyArmor will download it
-from remote server automatically. Refer to `The Others Prebuilt
-Libraries For PyArmor`_.
+    windows.x86
+    windows.x86_64
+    linux.x86
+    linux.x86_64
+    darwin.x86_64
 
-For all the latest platforms, refer to
-https://github.com/dashingsoft/pyarmor-core/blob/master/platforms/index.json
+For the other platforms, when first run `pyarmor`, it will download the
+corresponding dynamic library from the remote server automatically, and save it
+to ``~/.pyarmor/platforms/SYSTEM/ARCH/N/``, ``SYSTEM.ARCH`` is one of `Standard
+Platform Names`_. ``N`` is `features`_ number, which explained below. Here list
+all the other supported platforms::
 
-There may be serveral dynamic libraries with different features in
-each platform. The platform name with feature number suffix combines
-an unique name. For example, ``windows.x86_64.7`` means anti-debug,
-JIT and andvanced mode supported, ``windows.x86_64.0`` means no any
-feature.
+    darwin.aarch64
+    ios.aarch64
+    linux.arm
+    linux.armv6
+    linux.armv7
+    linux.aarch32
+    linux.aarch64
+    linux.ppc64
+    android.aarch64
+    android.armv7
+    android.x86
+    android.x86_64
+    uclibc.armv7
+    centos6.x86_64
+    freebsd.x86_64
+    musl.x86_64
+    musl.arm
+    musl.mips32
+    poky.x86
 
-Note that the dynamic library with different features aren't
-compatible. For example, try to obfuscate the scripts with target
-platform ``linux.x86_64.0`` in the Windows, the obfuscated scripts
-don't work in the target machine. Because the full features dynamic
-library ``windows.x86_64.7`` is used in the Windows by default. Now
-the common platforms are full features, most of the others not yet.
+For Linux platforms, the first identifier stands for libc used in this
+platform. ``linux`` stands for ``glibc``, ``centos6`` for ``glibc`` < 2.14,
+``android`` for static libc, ``musl`` and ``uclibc`` as it is. Note that Docker
+based on Alpine Linux, its identifier is ``musl``, not ``linux``.
 
-In some platforms, `pyarmor` doesn't know it but there is available
-dynamic library in the table `The Others Prebuilt Libraries For
-PyArmor`_. Just download it and save it in the path
-``~/.pyarmor/platforms/SYSTEM/ARCH``, this command ``pyarmor -d
-download`` will also display this path at the beginning. It's
-appreicated to send this platform information to jondy.zhao@gmail.com
-so that it could be recognized by `pyarmor` automatically. This script
-will display the required information by `pyarmor`:
+:ref:`Super mode` uses the extension module ``pytransform`` directly, and it
+will be saved in the path ``~/.pyarmor/platforms/SYSTEM/ARCH/N/pyXY``. For
+example, ``linux/x86_64/11/py38``.
 
-.. code-block:: python
+.. list-table:: Table-3. The Prebuilt Extensions For Super Mode
+   :name: The Prebuilt Extensions For Super Mode
+   :header-rows: 1
 
-   from platform import *
-   print('system name: %s' % system())
-   print('machine: %s' % machine())
-   print('processor: %s' % processor())
-   print('aliased terse platform: %s' % platform(aliased=1, terse=1))
+   * - Name
+     - Arch
+     - Feature
+     - Python Versions
+     - Remark
+   * - darwin
+     - x86_64
+     - 11
+     - 27, 37, 38, 39
+     -
+   * - darwin
+     - aarch64
+     - 11
+     - 38, 39
+     - Apple Silicon
+   * - ios
+     - aarch64
+     - 11
+     - 38, 39
+     -
+   * - linux
+     - x86, x86_64, aarch64, aarch32, armv7
+     - 11
+     - 27, 37, 38, 39
+     -
+   * - centos6
+     - x86_64
+     - 11
+     - 27
+     - Linux with glibc < 2.14 and UCS2
+   * - windows
+     - x86, x86_64
+     - 11, 25
+     - 27, 37, 38, 39
+     -
 
-   if system().lower().startswith('linux'):
-       print('libc: %s' % libc_ver())
-       print('distribution: %s' % linux_distribution())
+For all the latest platforms, refer to `pyarmor-core/platforms/index.json <https://github.com/dashingsoft/pyarmor-core/blob/master/platforms/index.json>`_
 
-Contact jondy.zhao@gmail.com if you'd like to run PyArmor in other
-platform.
+In some platforms, `pyarmor` doesn't know its standard name, just download the
+right one and save it in the path ``~/.pyarmor/platforms/SYSTEM/ARCH/N/``.  Run
+the command ``pyarmor -d download`` in this platform, and check the output log,
+it can help you find where to save the download file.
+
+If you're not sure this dynamic library is right for this platform, check it by
+``ldd`` to print the dependent system libraries. For example::
+
+    ldd /path/to/_pytransform.so
+
+If there is no anyone available and you'd like to run `pyarmor` in this
+platform, click here `submit a feature request for new platform
+<https://github.com/dashingsoft/pyarmor/issues>`_
+
+.. _features:
+
+Features
+--------
+
+There may be serveral dynamic libraries with different features in each
+platform. The platform name with feature number combines an unique name.
+
+Each feature has its own bit
+
+* 1: Anti-Debug
+* 2: JIT
+* 4: ADV, advanced mode
+* 8: SUPER, super mode
+* 16: VM, vm protection mode
+
+For example, ``windows.x86_64.7`` means anti-debug(1), JIT(2) and advanced
+mode(4) supported, its feature number is 7 = 1 + 2 + 4. ``windows.x86_64.0``
+means no any feature, so highest speed.
+
+For :ref:`Super mode`, there is an extra part to mark Python version. For
+example, ``windows.x86.11.py37``, feature number 11 = 1 + 2 + 8
+
+Note that zero feature dynamic library isn't compatible with any featured
+library. For security reason, the zero feature library uses different alogrithm
+to obfuscate the scripts. So the platform ``windows.x86_64.7`` can not share the
+same obfuscated scripts with platform ``linux.armv7.0``.
+
 
 .. _standard platform names:
 
@@ -77,158 +156,93 @@ These names are used in the command :ref:`obfuscate`, :ref:`build`,
 * linux.aarch32
 * linux.aarch64
 * android.aarch64
-* android.armv7 (New in 5.9.3)
+* android.armv7
+* android.x86
+* android.x86_64
+* uclibc.armv7
 * linux.ppc64
 * darwin.arm64
 * freebsd.x86_64
-* alpine.x86_64
-* alpine.arm
+* musl.x86_64
+* musl.arm
+* musl.mips32
+* linux.mips64
+* linux.mips64el
 * poky.x86
 
-Platform Tables
----------------
+.. note:: New platforms in differnt versions
 
-.. list-table:: Table-1. Prebuilt Libraries Distributed with PyArmor
-   :widths: 10 10 10 20 10 40
-   :name: Prebuilt Libraries Distributed with PyArmor
-   :header-rows: 1
+   * v5.9.3: android.armv7
+   * v5.9.4: uclibc.armv7
+   * v6.3.1: musl.x86_64, musl.arm, musl.mips32, linux.mips64, linux.mips64el
+   * v6.6.1: android.x86, android.x86_64
 
-   * - Name
-     - Platform
-     - Arch
-     - Features
-     - Download
-     - Description
-   * - windows.x86
-     - Windows
-     - i686
-     - Anti-Debug, JIT, ADV
-     - `_pytransform.dll <http://pyarmor.dashingsoft.com/downloads/latest/win32/_pytransform.dll>`_
-     - Cross compile by i686-pc-mingw32-gcc in cygwin
-   * - windows.x86_64
-     - Windows
-     - AMD64
-     - Anti-Debug, JIT, ADV
-     - `_pytransform.dll <http://pyarmor.dashingsoft.com/downloads/latest/win_amd64/_pytransform.dll>`_
-     - Cross compile by x86_64-w64-mingw32-gcc in cygwin
-   * - linux.x86
-     - Linux
-     - i686
-     - Anti-Debug, JIT, ADV
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/linux_i386/_pytransform.so>`_
-     - Built by GCC
-   * - linux.x86_64
-     - Linux
-     - x86_64
-     - Anti-Debug, JIT, ADV
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/linux_x86_64/_pytransform.so>`_
-     - Built by GCC
-   * - darwin.x86_64
-     - MacOSX
-     - x86_64, intel
-     - Anti-Debug, JIT, ADV
-     - `_pytransform.dylib <http://pyarmor.dashingsoft.com/downloads/latest/macosx_x86_64/_pytransform.dylib>`_
-     - Built by CLang with MacOSX10.11
+.. _downloading dynamic library by manual:
 
+Downloading Dynamic Library By Manual
+-------------------------------------
 
-.. list-table:: Table-2. The Others Prebuilt Libraries For PyArmor
-   :name: The Others Prebuilt Libraries For PyArmor
-   :widths: 10 10 10 20 10 40
-   :header-rows: 1
+If the machine is not connected to internet, download the corresponding dynamic
+library in other machine, then copy it in the right location.
 
-   * - Name
-     - Platform
-     - Arch
-     - Features
-     - Download
-     - Description
-   * - vs2015.x86
-     - Windows
-     - x86
-     -
-     - `_pytransform.dll <http://pyarmor.dashingsoft.com/downloads/latest/vs2015/x86/_pytransform.dll>`_
-     - Built by VS2015
-   * - vs2015.x86_64
-     - Windows
-     - x64
-     -
-     - `_pytransform.dll <http://pyarmor.dashingsoft.com/downloads/latest/vs2015/x64/_pytransform.dll>`_
-     - Built by VS2015
-   * - linxu.arm
-     - Linux
-     - armv5
-     -
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/armv5/_pytransform.so>`_
-     - 32-bit Armv5 (arm926ej-s)
-   * - linxu.armv6
-     - Linux
-     - armv6
-     -
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/linux.armv6.0/_pytransform.so>`_
-     - 32-bit Armv6 (-marm -march=armv6 -mfloat-abi=hard)
-   * - linux.armv7
-     - Linux
-     - armv7
-     - Anti-Debug, JIT
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/armv7/_pytransform.so>`_
-     - 32-bit Armv7 Cortex-A, hard-float, little-endian
-   * - linux.aarch32
-     - Linux
-     - aarch32
-     - Anti-Debug, JIT
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/armv8.32-bit/_pytransform.so>`_
-     - 32-bit Armv8 Cortex-A, hard-float, little-endian
-   * - linux.aarch64
-     - Linux
-     - aarch64
-     - Anti-Debug, JIT
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/armv8.64-bit/_pytransform.so>`_
-     - 64-bit Armv8 Cortex-A, little-endian
-   * - linux.ppc64
-     - Linux
-     - ppc64le
-     -
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/ppc64le/_pytransform.so>`_
-     - For POWER8
-   * - darwin.arm64
-     - iOS
-     - arm64
-     -
-     - `_pytransform.dylib <http://pyarmor.dashingsoft.com/downloads/latest/ios.arm64/_pytransform.dylib>`_
-     - Built by CLang with iPhoneOS9.3.sdk
-   * - freebsd.x86_64
-     - FreeBSD
-     - x86_64
-     -
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/freebsd/_pytransform.so>`_
-     - Not support harddisk serial number
-   * - alpine.x86_64
-     - Alpine Linux
-     - x86_64
-     -
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/alpine/_pytransform.so>`_
-     - Built with musl-1.1.21 for Docker
-   * - alpine.arm
-     - Alpine Linux
-     - arm
-     -
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/alpine.arm/_pytransform.so>`_
-     - Built with musl-1.1.21, 32-bit Armv5T, hard-float, little-endian
-   * - poky.x86
-     - Inel Quark
-     - i586
-     -
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/intel-quark/_pytransform.so>`_
-     - Cross compile by i586-poky-linux
-   * - android.aarch64
-     - Android
-     - aarch64
-     -
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/android.aarch64/_pytransform.so>`_
-     - Build by android-ndk-r20/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang
-   * - android.armv7
-     - Android
-     - armv7l
-     -
-     - `_pytransform.so <http://pyarmor.dashingsoft.com/downloads/latest/android.armv7.0/_pytransform.so>`_
-     - Build by android-ndk-r20/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-android21-clang
+First make sure there is platform index file ``platforms/index.json``. If not,
+run any `pyarmor` command in target machine, it raises exception. For example::
+
+    pyarmor.py o --advanced 2 foo.py
+
+    INFO     PyArmor Version 6.4.2
+    INFO     Target platforms: Native
+    INFO     Getting remote file: https://github.com/dashingsoft/pyarmor-core/raw/r34.8/platforms/index.json
+    INFO     Could not get file from https://github.com/dashingsoft/pyarmor-core/raw/r34.8/platforms: <urlopen error timed out>
+    INFO     Getting remote file: https://pyarmor.dashingsoft.com/downloads/r34.8/index.json
+    INFO     Could not get file from https://pyarmor.dashingsoft.com/downloads/r34.8: <urlopen error timed out>
+    ERROR    No platform list file /data/user/.pyarmor/platforms/index.json found
+
+There are 2 available urls in the log message, download one of them from other
+machine, for example::
+
+https://pyarmor.dashingsoft.com/downloads/r34.8/index.json
+
+And copy it to the prompt path in target machine::
+
+    /data/user/.pyarmor/platforms/index.json
+
+Next run `pyarmor` command in target machine again, this time it will prompt the
+download file and target path. For example::
+
+    pyarmor o --advanced 2 foo.py
+
+    ...
+    INFO Use capsule: /root/.pyarmor/.pyarmor_capsule.zip
+    INFO Output path is: /root/supervisor/dist
+    INFO Taget platforms: []
+    INFO Update target platforms to: [u'linux.x86_64.11.py27']
+    INFO Generating super runtime library to dist
+    INFO Search library for platform: linux.x86_64.11.py27
+    INFO Found available libraries: [u'linux.x86_64.11.py27']
+    INFO Target path for linux.x86_64.11.py27: /home/jondy/.pyarmor/platforms/linux/x86_64/11/py27
+    INFO Downloading library file for linux.x86_64.11.py27 ...
+    INFO Getting remote file: https://github.com/dashingsoft/pyarmor-core/raw/r34.8/platforms/linux.x86_64.11.py27/pytransform.so
+    INFO Could not get file from https://github.com/dashingsoft/pyarmor-core/raw/r34.8/platforms: <urlopen error [Errno 111] Connection refused>
+    INFO Getting remote file: https://pyarmor.dashingsoft.com/downloads/r34.8/linux.x86_64.11.py27/pytransform.so
+    INFO Could not get file from https://pyarmor.dashingsoft.com/downloads/r34.8: <urlopen error [Errno 111] Connection refused>
+    ERROR Download library file failed
+
+Download it as before, for example
+
+https://github.com/dashingsoft/pyarmor-core/raw/r34.8/platforms/linux.x86_64.11.py27/pytransform.so
+
+And copy it to the path in the line ``INFO Target path``. Here it is::
+
+    /home/jondy/.pyarmor/platforms/linux/x86_64/11/py27
+
+Before PyArmor 6.5.5, no target path line. Save it to ``~/.pyarmor/platforms/``
+plus platform path. For example, the target path of platform
+``linux.x86_64.11.py27`` is ``~/.pyarmor/platforms/linux/x86_64/11/py27``.
+
+All the available dynamic libraries are stored in the repos `pyarmor-core`
+
+https://github.com/dashingsoft/pyarmor-core
+
+Each pyarmor version has the corresponding tag, for example, PyArmor 6.4.2 ->
+tag "r34.8". Switch this tag and download fiels from ``platforms``.

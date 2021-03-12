@@ -18,7 +18,7 @@ mkdir -p ${workpath} || csih_error "Make workpath FAILED"
 
 csih_inform "Clean pyarmor data"
 rm -rf  ~/.pyarmor ~/.pyarmor_capsule.*
-[[ -n "$USERPROFILE" ]] && rm -rf "$USERPROFILE\\.pyarmor" "$USERPROFILE\\.pyarmor_capsule.*"
+[[ -n "$USERPROFILE" ]] && rm -rf "$USERPROFILE\\.pyarmor*"
 
 cd ${workpath}
 [[ ${pkgfile} == *.zip ]] && unzip ${pkgfile} > /dev/null 2>&1
@@ -89,8 +89,6 @@ check_file_content dist2/hello.py 'pyarmor_runtime()'
 check_file_exists dist2/queens.py
 check_file_content dist2/queens.py '__pyarmor__(__name__'
 check_file_exists dist2/pytransform/__init__.py
-check_file_exists dist2/pytransform/license.lic
-check_file_not_exists dist2/license.lic
 
 ( cd dist2; $PYTHON hello.py >result.log 2>&1 )
 check_return_value
@@ -182,7 +180,7 @@ check_file_exists projects/py2exe/.pyarmor_config
 
 csih_inform "Case 2.3: init package"
 $PYARMOR init --src examples/testpkg/mypkg --entry "../main.py" \
-              projects/testpkg >result.log 2>&1
+              --type=pkg projects/testpkg >result.log 2>&1
 
 check_return_value
 
@@ -208,14 +206,14 @@ echo "-------------------- Test Command config -----------------------"
 echo ""
 
 csih_inform "Case 3.1: config py2exe"
-( cd projects/py2exe; $ARMOR config --runtime-path='' \
+( cd projects/py2exe; $ARMOR config --rpath='' \
     --manifest="global-include *.py, exclude __manifest__.py" \
     >result.log 2>&1 )
 check_return_value
 
 csih_inform "Case 3.2: config pybench"
 ( cd projects/pybench; $ARMOR config --disable-restrict-mode=1 \
-    >result.log 2>&1 )
+                              >result.log 2>&1 )
 check_return_value
 
 echo ""
@@ -349,7 +347,8 @@ check_file_exists $output/fixkey/license.lic
 check_file_exists $output/fixkey/license.lic.txt
 
 csih_inform "Case 7.2: Show license info"
-( cd projects/pybench; $ARMOR build >licenses-result.log 2>&1 )
+( cd projects/pybench;
+  $ARMOR build --with-license outer >licenses-result.log 2>&1 )
 
 cat <<EOF > projects/pybench/dist/info.py
 from pytransform import pyarmor_init, get_license_info
@@ -357,18 +356,12 @@ pyarmor_init(is_runtime=1)
 print(get_license_info())
 EOF
 
-( cd projects/pybench/dist;
-    $PYTHON info.py >result.log 2>&1 )
-check_file_content projects/pybench/dist/result.log "'PyArmor-Project'"
-
 cp $output/code1/license.lic projects/pybench/dist/pytransform
-( cd projects/pybench/dist;
-    $PYTHON info.py >result.log 2>&1 )
+( cd projects/pybench/dist; $PYTHON info.py >result.log 2>&1 )
 check_file_content projects/pybench/dist/result.log "'code1'"
 
 cp $output/customer-tom/license.lic projects/pybench/dist/pytransform
-( cd projects/pybench/dist;
-    $PYTHON info.py >result.log 2>&1 )
+( cd projects/pybench/dist; $PYTHON info.py >result.log 2>&1 )
 check_file_content projects/pybench/dist/result.log "'customer-tom'"
 check_file_content projects/pybench/dist/result.log "'${harddisk_sn}'"
 check_file_content projects/pybench/dist/result.log "'${ifmac_address}'"
@@ -376,13 +369,12 @@ check_file_content projects/pybench/dist/result.log "'${ifip_address}'"
 
 cp $output/fixkey/license.lic projects/pybench/dist/pytransform
 cp projects/pybench/id_rsa projects/pybench/dist/pytransform
-( cd projects/pybench/dist;
-    $PYTHON info.py >result.log 2>&1 )
-check_file_content projects/pybench/dist/result.log "'\*FIXKEY\*'"
+( cd projects/pybench/dist; $PYTHON info.py >result.log 2>&1 )
+check_file_content projects/pybench/dist/result.log "'FIXKEY'"
 
 csih_inform "Case 7.3: Generate license which disable all restricts"
 output=test-no-restrict-license
-$PYARMOR obfuscate -O $output --no-cross-protection \
+$PYARMOR obfuscate -O $output --no-cross-protection --with-license outer \
          examples/simple/queens.py >result.log 2>&1
 check_return_value
 
@@ -396,6 +388,127 @@ echo -e "\nprint('No restrict mode')" >> $output/queens.py
 check_return_value
 check_file_content $output/result.log 'Found 92 solutions'
 check_file_content $output/result.log 'No restrict mode'
+
+cat <<EOF > test-license.py
+from pytransform import get_license_info
+print('Test old licenses')
+print(get_license_info())
+EOF
+$PYARMOR obfuscate --with-license outer --exact \
+         -O test-legency-licenses test-license.py >result.log 2>&1
+
+csih_inform "Case 7.4: Generate license bind to fixed machine"
+$PYARMOR licenses --bind-disk="${harddisk_sn}" r001 >result.log 2>&1
+check_return_value
+check_file_exists licenses/r001/license.lic
+
+cp licenses/r001/license.lic test-legency-licenses/pytransform
+( cd test-legency-licenses; $PYTHON test-license.py >result.log 2>&1 )
+check_file_content test-legency-licenses/result.log "Test old licenses"
+check_file_content test-legency-licenses/result.log "${harddisk_sn}"
+
+csih_inform "Case 7.5: Generate no expired license bind to fixed machine"
+$PYARMOR licenses -e $(next_month) --bind-disk="${harddisk_sn}" r002 >result.log 2>&1
+check_return_value
+check_file_exists licenses/r002/license.lic
+
+cp licenses/r002/license.lic test-legency-licenses/pytransform
+( cd test-legency-licenses; $PYTHON test-license.py >result.log 2>&1 )
+check_file_content test-legency-licenses/result.log "Test old licenses"
+check_file_content test-legency-licenses/result.log "r002"
+
+csih_inform "Case 7.6: Generate expired license"
+$PYARMOR licenses -e 2014-01-01 r003 >result.log 2>&1
+check_return_value
+check_file_exists licenses/r003/license.lic
+
+cp licenses/r003/license.lic test-legency-licenses/pytransform
+( cd test-legency-licenses; $PYTHON test-license.py >result.log 2>&1 )
+check_file_content test-legency-licenses/result.log "Test old licenses" not
+
+csih_inform "Case 7.7: generate license bind to mac address"
+$PYARMOR licenses --bind-mac="${ifmac_address}" r004 >result.log 2>&1
+check_return_value
+check_file_exists licenses/r004/license.lic
+
+cp licenses/r004/license.lic test-legency-licenses/pytransform
+( cd test-legency-licenses; $PYTHON test-license.py >result.log 2>&1 )
+check_file_content test-legency-licenses/result.log "Test old licenses"
+check_file_content test-legency-licenses/result.log "r004"
+check_file_content test-legency-licenses/result.log "${ifmac_address}"
+
+csih_inform "Case 7.8: Generate license bind to other mac address"
+$PYARMOR licenses --bind-mac="xx:yy:zz" r005 >result.log 2>&1
+check_return_value
+check_file_exists licenses/r005/license.lic
+
+cp licenses/r005/license.lic test-legency-licenses/pytransform
+( cd test-legency-licenses; $PYTHON test-license.py >result.log 2>&1 )
+check_file_content test-legency-licenses/result.log "Test old licenses" not
+check_file_content test-legency-licenses/result.log "r005" not
+
+csih_inform "Case 7.9: Generate license bind to ip address"
+$PYARMOR licenses --bind-ipv4="${ifip_address}" r006 >result.log 2>&1
+check_return_value
+check_file_exists licenses/r006/license.lic
+
+cp licenses/r006/license.lic test-legency-licenses/pytransform
+( cd test-legency-licenses; $PYTHON test-license.py >result.log 2>&1 )
+check_file_content test-legency-licenses/result.log "Test old licenses"
+check_file_content test-legency-licenses/result.log "r006"
+check_file_content test-legency-licenses/result.log "${ifip_address}"
+
+csih_inform "Case 7.10: Generate license bind to other ip address"
+$PYARMOR licenses --bind-ipv4="xxx.yyy.zzz" r007 >result.log 2>&1
+check_return_value
+check_file_exists licenses/r007/license.lic
+
+cp licenses/r007/license.lic test-legency-licenses/pytransform
+( cd test-legency-licenses; $PYTHON test-license.py >result.log 2>&1 )
+check_file_content test-legency-licenses/result.log "Test old licenses" not
+check_file_content test-legency-licenses/result.log "r007" not
+
+csih_inform "Case 7.11: Generate license bind to both mac and ip address"
+$PYARMOR licenses --bind-mac="${ifmac_address}" \
+         --bind-ipv4="${ifip_address}" r008 >result.log 2>&1
+check_return_value
+check_file_exists licenses/r008/license.lic
+
+cp licenses/r008/license.lic test-legency-licenses/pytransform
+( cd test-legency-licenses; $PYTHON test-license.py >result.log 2>&1 )
+check_file_content test-legency-licenses/result.log "Test old licenses"
+check_file_content test-legency-licenses/result.log "r008"
+check_file_content test-legency-licenses/result.log "${ifmac_address}"
+
+csih_inform "Case 7.12: Generate license bind to other domain name"
+$PYARMOR licenses --bind-domain="snsoffice.com" r009 >result.log 2>&1
+check_return_value
+check_file_exists licenses/r009/license.lic
+
+cp licenses/r009/license.lic test-legency-licenses/pytransform
+( cd test-legency-licenses; $PYTHON test-license.py >result.log 2>&1 )
+check_file_content test-legency-licenses/result.log "Test old licenses" not
+check_file_content test-legency-licenses/result.log "r009" not
+
+if [[ ${UNAME:0:5} == Linux ]] ; then
+csih_inform "Case 7.13: generate license bind to mac address with ifname"
+$PYARMOR licenses --bind-mac="${ifname}/${ifmac_address}" r010 >result.log 2>&1
+$PYARMOR licenses --bind-mac="eth1/${ifmac_address}" r011 >result.log 2>&1
+check_return_value
+check_file_exists licenses/r010/license.lic
+check_file_exists licenses/r011/license.lic
+
+cp licenses/r010/license.lic test-legency-licenses/pytransform
+( cd test-legency-licenses; $PYTHON test-license.py >result.log 2>&1 )
+check_file_content test-legency-licenses/result.log "Test old licenses"
+check_file_content test-legency-licenses/result.log "r010"
+check_file_content test-legency-licenses/result.log "${ifname}/${ifmac_address}"
+
+cp licenses/r011/license.lic test-legency-licenses/pytransform
+( cd test-legency-licenses; $PYTHON test-license.py >result.log 2>&1 )
+check_file_content test-legency-licenses/result.log "Test old licenses" not
+check_file_content test-legency-licenses/result.log "r011" not
+fi
 
 echo ""
 echo "-------------------- Test Command licenses END -----------------"
@@ -416,8 +529,9 @@ $PYARMOR hdinfo >result.log 2>&1
 check_return_value
 
 csih_inform "Case 8.2: get hardware info"
-
-cat <<EOF > test_get_hd_info.py
+casepath=test-hardware-info
+mkdir -p $casepath
+cat <<EOF > $casepath/test_get_hd_info.py
 import pytransform
 from pytransform import pyarmor_init, get_hd_info
 pytransform.plat_path = 'platforms'
@@ -425,8 +539,9 @@ pyarmor_init(path='.', is_runtime=1)
 print(get_hd_info(0))
 EOF
 
-$PYTHON test_get_hd_info.py >result.log 2>&1
-check_file_content result.log "${harddisk_sn}"
+$PYARMOR runtime --no-package -O $casepath >result.log 2>&1
+(cd $casepath; $PYTHON test_get_hd_info.py >result.log 2>&1)
+check_file_content $casepath/result.log "${harddisk_sn}"
 
 echo ""
 echo "-------------------- Test Command hdinfo END -------------------"
@@ -443,7 +558,7 @@ echo "-------------------- Test Command benchmark --------------------"
 echo ""
 
 csih_inform "Case 9.1: run benchmark test"
-for obf_mod in 0 1 ; do
+for obf_mod in 0 1 2 ; do
   for obf_code in 0 1 2 ; do
     for obf_wrap_mode in 0 1 ; do
       csih_inform "obf_mod: $obf_mod, obf_code: $obf_code, wrap_mode: $obf_wrap_mode"
@@ -452,7 +567,7 @@ for obf_mod in 0 1 ; do
                          --wrap-mode ${obf_wrap_mode} >$logfile 2>&1
       check_return_value
       csih_inform "Write benchmark test results to $logfile"
-      check_file_content $logfile "run_ten_thousand_obfuscated_bytecode"
+      check_file_content $logfile "call_10000_obfuscated_10k_bytecode"
       rm -rf .benchtest
     done
   done
@@ -568,6 +683,10 @@ echo ""
 # Finished and cleanup.
 #
 # ======================================================================
+
+csih_inform "Clean pyarmor data"
+rm -rf  ~/.pyarmor ~/.pyarmor_capsule.*
+[[ -n "$USERPROFILE" ]] && rm -rf "$USERPROFILE\\.pyarmor*"
 
 # Return test root
 cd ../..

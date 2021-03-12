@@ -1,5 +1,5 @@
-Installation
-============
+Installation and Uninstallation
+===============================
 
 |PyArmor| is a normal Python package.  You can download the archive from PyPi_,
 but it is easier to install using pip_ where is available, for example::
@@ -49,18 +49,27 @@ Clean uninstallation
 
 The following files are created by `pyarmor` after it has been installed::
 
-    ~/.pyarmor_capsule.zip
-    ~/.pyarmor/license.lic (since v5.8.0)
+    ~/.pyarmor/.pyarmor_capsule.zip    (since v6.2.0)
+    ~/.pyarmor/license.lic             (since v5.8.0)
     ~/.pyarmor/platforms/
 
-    {pyarmor-folder}/license.lic (before v5.8.0)
+    {pyarmor-folder}/license.lic       (before v5.8.0)
+    ~/.pyarmor_capsule.zip             (before v6.2.0)
+
+    /path/to/project/.pyarmor_config   (if using project)
 
 Run the following commands to make a clean uninstallation::
 
     pip uninstall pyarmor
 
-    rm -rf {pyarmor-folder}
-    rm -rf ~/.pyarmor_capsule.zip
     rm -rf ~/.pyarmor
+    rm -rf {pyarmor-folder}            (before v5.8.0)
+    rm -rf ~/.pyarmor_capsule.zip      (before v6.2.0)
+
+    rm /path/to/project/.pyarmor_config
+
+.. note::
+
+   The path ``~`` may be different when logging by different user.
 
 .. include:: _common_definitions.txt

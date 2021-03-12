@@ -1,9 +1,7 @@
 # PyArmor
 
 * [Homepage](https://pyarmor.dashingsoft.com) ([中文版网站](https://pyarmor.dashingsoft.com/index-zh.html))
-* [Documentation](https://pyarmor.readthedocs.io/en/latest/)
-* [WebUI Demo](https://pyarmor.dashingsoft.com/demo/index.html)
-* [Examples](src/examples)
+* [Documentation](https://pyarmor.readthedocs.io/en/latest/)([中文版](https://pyarmor.readthedocs.io/zh/latest/))
 
 PyArmor is a command line tool used to obfuscate python scripts, bind
 obfuscated scripts to fixed machine or expire obfuscated scripts. It
@@ -14,15 +12,15 @@ protects Python scripts by the following ways:
 * Clear f_locals of frame as soon as code object completed execution.
 * Verify the license file of obfuscated scripts while running it.
 
-Refer to [How PyArmor Does It](https://pyarmor.readthedocs.io/en/latest/how-to-do.html)
+Also refer to [The Security of PyArmor](https://pyarmor.readthedocs.io/en/latest/security.html)
 
 ## Support Platforms
 
-- Python 2.5, 2.6, 2.7 and Python3
+- Python 2.7 and Python3
 - Prebuilt Platform: win32, win_amd64, linux_i386, linux_x86_64, macosx_x86_64
-- Embedded Platform: Raspberry Pi, Banana Pi, Orange Pi, TS-4600 / TS-7600
+- Embedded Platform: Raspberry Pi, Banana Pi, Orange Pi, TS-4600 / TS-7600 and more
 
-Refer to [docs/platforms.rst](docs/platforms.rst)
+Refer to [support platforms](https://pyarmor.readthedocs.io/en/latest/platforms.html)
 
 ## Quick Start
 
@@ -43,12 +41,10 @@ Pack obfuscated scripts into one bundle
     pip install pyinstaller
     pyarmor pack foo.py
 
-Generate an expired license and run obfuscated scripts with new license
+Obfuscate scripts with an expired license
 
-    pyarmor licenses --expired 2018-12-31 PRODUCT-SN-0001
-    cp licenses/PRODUCT-SN-0001/license.lic dist/pytransform/
-
-    python dist/foo.py
+    pyarmor licenses --expired 2018-12-31 r001
+    pyarmor obfuscate --with-license licenses/r001/license.lic foo.py
 
 There is also a web-ui package [pyarmor-webui](https://github.com/dashingsoft/pyarmor-webui)
 
@@ -60,47 +56,36 @@ Start webui, open web page in browser ([snapshots](https://github.com/dashingsof
 
 More usage, refer to
 
-* [Examples](src/examples/README.md)
-* [Documentation](https://pyarmor.readthedocs.io/en/latest/)
+* [Examples](https://pyarmor.readthedocs.io/en/latest/examples.html)
+* [Using PyArmor](https://pyarmor.readthedocs.io/en/latest/usage.html)
+* [Advanced Usage](https://pyarmor.readthedocs.io/en/latest/advanced.html)
+* [Man Page](https://pyarmor.readthedocs.io/en/latest/man.html)
+* [Sample Shell Scripts](src/examples/README.md)
 
-## License
+## License & Purchase
 
 PyArmor is published as shareware, free trial version never expires, but there are
 some limitations:
 
-* The maximum size of code object is 35728 bytes in trial version
-* All the trial version uses same public capsule other than private capsule
-* In trial version the module could not be obfuscated by advanced mode
-  if there are more than about 30 functions (code objects) in this module.
-* ...
+* The trial version could not obfuscate the big scripts
+* The trial version uses same public capsule other than private capsule
+* The trial version could not download the latest dynamic library of extra platforms
 
 For details, refer to [PyArmor License](https://pyarmor.readthedocs.io/en/latest/license.html).
 
-### Purchase
+## [Change Logs](docs/change-logs.rst)
 
-Click [Purchase](https://order.shareit.com/cart/add?vendorid=200089125&PRODUCT[300871197]=1),
+It describes the fixed issues, new features, incompatible issues in different
+versions.
 
-A registration keyfile generally named "pyarmor-regfile-1.zip" will be sent to
-your by email immediately after payment is completed successfully. There are 3
-files in the archive:
-
-* REAME.txt
-* license.lic (registration code)
-* .pyarmor_capsule.zip (private capsule)
-
-Run the following command to take this keyfile effects:
-
-    pyarmor register /path/to/pyarmor-regfile-1.zip
-
-Check the registeration information:
-
-    pyarmor register
-
-**The registration code is valid forever, it can be used permanently.**
-
-## [Change Log](docs/change-logs.rst)
+It's recommended to read this carefully before upgrading pyarmor.
 
 ## [Report issuses](https://github.com/dashingsoft/pyarmor/issues)
 
-Any question feel free email to <jondy.zhao@gmail.com>, or click here
-to [report an issue](https://github.com/dashingsoft/pyarmor/issues)
+If there is any question, first check these [questions and
+solutions](https://pyarmor.readthedocs.io/en/latest/questions.html), it may help
+you solve the problem quickly.
+
+If there is no solution, for technical issue, click here to [report an
+issue](https://github.com/dashingsoft/pyarmor/issues) according to the issue
+template, for business and security issue send email to <jondy.zhao@gmail.com>.

@@ -27,6 +27,7 @@ Python script. That is to say:
 
 **The original python scripts can be replaced with obfuscated scripts seamlessly.**
 
+
 .. _how to obfuscate scripts:
 
 How to Obfuscate Python Scripts
@@ -95,86 +96,133 @@ The obfuscated script is a normal Python script, it looks like this::
 How to Deal With Plugins
 ------------------------
 
-In PyArmor, the plugin is used to inject python code into the obfuscted
-scripts. For example::
+In PyArmor, the plugin is used to inject python code into the obfuscted script
+before the script is obfuscated, thus the plugin code could be executed when the
+obfuscated script is running. For example, use a plugin to check internet time::
 
-    pyarmor obfuscate --plugin check_multi_mac --plugin @assert_armored foo.py
+    pyarmor obfuscate --plugin check_ntp_time foo.py
 
-It also could include path::
-
-    pyarmor obfuscate --plugin /path/to/check_ntp_time foo.py
+Why not insert the plugin code into the script directly? Because most of them
+must be called in the obufscated scripts. For example, get the license
+information of the obfuscated scripts.
 
 Each plugin is a normal Python script, PyArmor searches it by this way:
 
 * If the plugin has absolute path, then find the corresponding `.py` file exactly.
-* If it has relative path, first search the related `.py` file in the current
-  path, then ``$HOME/.pyarmor/plugins``, finally in the path specified by
-  environment variable ``PYARMOR_PLGUIN``
+* If it has relative path, search the `.py` file in:
+    - The current path
+    - ``$HOME/.pyarmor/plugins``
+    - ``{pyarmor_folder}/plugins``
 * Raise exception if not found
 
 When there is plugin specified as obfuscating the script, each comment line will
-be scanned to find any plugin marker. There are 2 types of plugin marker:
+be scanned to find any plugin marker.
 
-* Plguin Definition Marker
+There are 3 types of plugin marker:
+
+* Plugin Definition Marker
+* Plugin Inline Marker
 * Plugin Call Marker
 
-The plugin definition marker has this form::
+The `Plugin Definition Marker` looks like this::
 
     # {PyArmor Plugins}
 
-It must be one leading comment line, no indentation. Generally there is only one
-in a script, all the plugins will be injected here. If there is no plugin
+Generally there is only one in a script, all the plugins will be injected
+here. It must be one leading comment line, no indentation. If there is no plugin
 definition marker, none of plugins will be injected.
 
-The plugin call maker has 3 forms, any comment line starts with these patterns
-is Call Marker::
+The others are mainly used to call the function defined in the plugin
+scripts. There are 3 forms, any comment line with this prefix will be as a
+plugin marker::
 
     # PyArmor Plugin:
     # pyarmor_
     # @pyarmor_
 
-They could appear many times, any indentation, but have to behind plugin
-definition marker.
+They could appear many times, in any indentation, generally should be behind
+plugin definition marker.
 
-For the first form ``# PyArmor Plugin:``, PyArmor just remove this pattern and
-one following whitespace exactly, and leave the rest part of this line as it
-is. For example::
+The first form called `Plugin Inline Marker`, PyArmor just removes this pattern
+and one following whitespace exactly, and leave the rest part as it is. For
+example, these are inline markers in the script ``foo.py``::
 
-    # PyArmor Plugin: check_ntp_time() ==> check_ntp_time()
+    # PyArmor Plugin: check_ntp_time()
+    # PyArmor Plugin: print('This is plugin code')
+    # PyArmor Plugin: if sys.flags.debug:
+    # PyArmor Plugin:     check_something():
+
+In the ``dist/foo.py``, they'll be replaced as::
+
+    check_ntp_time()
+    print('This is plugin code')
+    if sys.flags.debug:
+        check_something()
 
 So long as there is any plugin specified in the command line, these replacements
-will be taken place. The rest part could be any valid Python code. For
-examples::
+will be taken place. If there is no external plugin script, use special plugin
+name ``on`` in the command line. For example::
 
-    # PyArmor Plugin: print('This is plugin code') ==> print('This is plugin code')
-    # PyArmor Plugin: if sys.flags.debug:          ==> if sys.flags.debug:
-    # PyArmor Plugin:     check_something():       ==>     check_something()
+    pyarmor obfuscate --plugin on foo.py
 
-For the second form ``# pyarmor_``, it's only used to call function deinfed in
-the plugin. And if this function name is not specified as plugin name, PyArmor
-doesn't touch this marker. For example, obfuscating a script with plugin
-`check_multi_mac`, the first marker is replaced, the second not::
+The second form called `Plugin Call Marker`, it's only used to call function
+deinfed in the plugin script. Besides, if this function name is not specified as
+plugin name, PyArmor doesn't touch this marker. For example, obufscate the
+script by this command::
 
-    # pyarmor_check_multi_mac() ==> check_multi_mac()
-    # pyarmor_check_code() ==> # pyarmor_check_code()
+    pyarmor obfuscate --plugin check_ntp_time foo.py
 
-The last form is almost same as the second, but ``# @pyarmor_`` will be replaced
-with ``@``, it's mainly used to inject a decorator. For example::
+In the ``foo.py``, only the first marker will be handled, the second marker will
+be kept as it is, because there is no plugin name specified in the command line
+as the function name ``check_multi_mac``::
 
-    # @pyarmor_assert_obfuscated(foo.connect) ==> @assert_obfuscated(foo.connect)
+    # pyarmor_check_ntp_time()
+    # pyarmor_check_multi_mac()
 
-If the plugin doesn't include a leading ``@`` in command line, it will be always
-injected into the obfuscated scripts. For example::
+    ==>
 
-    pyarmor obfuscate --plugin check_multi_mac --plugin assert_armored foo.py
+    check_ntp_time()
+    # pyarmor_check_multi_mac()
 
-However, if there is a leading ``@``, it couldn't be injected into the
-obfuscated scripts, until this plugin name appears in any plugin call marker or
-plugin decorator marker. For examples, if there is no any plugin call marker or
-decorator marker in the `foo.py`, both of plugins will be ignored::
+The last form ``# @pyarmor_`` is almost same as the second, but the comment
+prefix will be replaced with ``@``, it's mainly used to inject a decorator. For
+example::
 
-    pyarmor obfuscate --plugin @assert_armored foo.py
-    pyarmor obfuscate --plugin @/path/to/check_ntp_time foo.py
+    # @pyarmor_assert_obfuscated(foo.connect)
+    def login(user, name):
+        foo.connect(user, name)
+
+    ==>
+
+    @assert_obfuscated(foo.connect)
+    def login(user, name):
+        foo.connect(user, name)
+
+If the plugin name have a leading ``@``, it will be injected into the script
+only when it's used in the script, otherwise it's ignored. For example::
+
+    pyarmor obfuscate --plugin @check_ntp_time foo.py
+
+The script ``foo.py`` must call plugin function ``check_ntp_time`` by one of
+`Plugin Call Marker`. For example::
+
+    # pyarmor_check_ntp_time()
+
+The `Plugin Inline Marker` doesn't work. For example::
+
+    # PyArmor Plugin: check_ntp_time()
+
+Even this marker will be replaced with ``check_ntp_time()``, but the plugin
+script will not be injected into the obfuscated script. When it runs, it will
+complain of no function `check_ntp_name` found.
+
+.. note::
+
+   If there is no option ``--plugin`` in the command line, pyarmor DOES NOT
+   search any plugin marker in the comment. If there is no external plugin
+   script, use special name ``on`` like this::
+
+     pyarmor obfuscate --plugin on foo.py
 
 .. _special handling of entry script:
 
@@ -263,6 +311,7 @@ To prevent PyArmor from inserting this protection code, pass
 
 After the entry script is obfuscated, the :ref:`Bootstrap Code` will be inserted
 at the beginning of the obfuscated script.
+
 
 .. _how to run obfuscated scripts:
 
@@ -379,16 +428,23 @@ First install ``pyinstaller``::
 
 Then obfuscate scripts to ``dist/obf``::
 
-    pyarmor obfuscate --output dist/obf --runtime-mode 0 hello.py
+    pyarmor obfuscate --output dist/obf --package-runtime 0 hello.py
 
-Next generate specfile, add runtime files required by obfuscated
-scripts::
+Next generate specfile, add runtime files required by obfuscated scripts::
 
-    pyinstaller --add-data dist/obf/license.lic:. \
-                --add-data dist/obf/pytransform.key:. \
-                --add-data dist/obf/_pytransform.*:. \
-                -p dist/obf --hidden-import pytransform \
-                hello.py
+    pyi-makespec --add-data dist/obf/license.lic:. \
+                 --add-data dist/obf/pytransform.key:. \
+                 --add-data dist/obf/_pytransform.*:. \
+                 -p dist/obf --hidden-import pytransform \
+                 hello.py
+
+If the scripts are obfuscated by super mode::
+
+    pyarmor obfuscate --output dist/obf --advanced 2 --package-runtime 0 hello.py
+
+Generate `.spec` file by this command::
+
+    pyi-makespec -p dist/obf --hidden-import pytransform hello.py
 
 .. _note:
 
@@ -427,12 +483,6 @@ Run patched specfile to build final distribution::
 
 Check obfuscated scripts work::
 
-   # It works
-   dist/hello/hello.exe
-
-   rm dist/hello/license.lic
-
-   # It should not work
    dist/hello/hello.exe
 
 .. include:: _common_definitions.txt
