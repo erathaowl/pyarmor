@@ -1,6 +1,6 @@
 from sys import platform
 
-version = '6.6.3'
+version = '6.7.1'
 
 # The corresponding version of pytransform.so
 core_version = 'r42.16'
@@ -40,8 +40,8 @@ default_output_path = 'dist'
 default_manifest_template = 'global-include *.py'
 
 platform_old_urls = (
-    'https://github.com/dashingsoft/pyarmor-core/raw/r41.15/platforms',
-    'https://pyarmor.dashingsoft.com/downloads/r41.15',
+    'https://github.com/dashingsoft/pyarmor-core/raw/r41.15a/platforms',
+    'https://pyarmor.dashingsoft.com/downloads/r41.15a',
 )
 platform_config = 'index.json'
 platform_url = 'https://pyarmor.dashingsoft.com/files/{version}'

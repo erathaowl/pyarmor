@@ -5,12 +5,13 @@ source test-header.sh
 # Initial setup.
 #
 # ======================================================================
-
-PYARMOR="${PYTHON} pyarmor.py"
-
-csih_inform "Python is $PYTHON"
 csih_inform "Tested Package: $pkgfile"
-csih_inform "PyArmor is $PYARMOR"
+
+PYTHON_LIST="python python3"
+if [[ $PLATFORM == win* ]] ; then
+    PYTHON_LIST="C:/Python27/python C:/Python37/python"
+fi
+csih_inform "Tested Python List: ${PYTHON_LIST}"
 
 csih_inform "Make workpath ${workpath}"
 rm -rf ${workpath}
@@ -44,6 +45,8 @@ echo ""
 #
 # ======================================================================
 
+bootstrap()
+{
 echo ""
 echo "-------------------- Bootstrap ---------------------------------"
 echo ""
@@ -57,6 +60,7 @@ $PYARMOR --version >result.log 2>&1 || csih_bug "show version FAILED"
 echo ""
 echo "-------------------- Bootstrap End -----------------------------"
 echo ""
+}
 
 # ======================================================================
 #
@@ -64,28 +68,31 @@ echo ""
 #
 # ======================================================================
 
+test_cross_publish()
+{
 echo ""
 echo "-------------------- Test Cross Publish --------------------"
 echo ""
 
 csih_inform "Case CP-1: cross publish by obfuscate"
-$PYARMOR obfuscate --platform linux.x86_64 -O test-cross-publish \
+$PYARMOR obfuscate --platform linux.armv7 -O test-cross-publish \
          examples/simple/queens.py >result.log 2>&1
 check_return_value
-check_file_content result.log "linux.x86_64._pytransform.so"
+check_file_content result.log "linux.armv7.3._pytransform.so"
+check_file_content result.log 'The trial version could not download the latest' $1
 
 csih_inform "Case CP-2: cross publish by obfuscate with no-cross-protection"
 $PYARMOR obfuscate --platform linux.x86_64 -O test-cross-publish \
          --no-cross-protection examples/simple/queens.py >result.log 2>&1
 check_return_value
-check_file_content result.log "linux.x86_64._pytransform.so"
+check_file_content result.log "linux.x86_64.7._pytransform.so"
 
 csih_inform "Case CP-3: cross publish by project"
 PROPATH=projects/test-cross-publish
 $PYARMOR init --src examples/simple --entry queens.py $PROPATH >result.log 2>&1
 $PYARMOR build --platform linux.x86_64 $PROPATH >result.log 2>&1
 check_return_value
-check_file_content result.log "linux.x86_64._pytransform.so"
+check_file_content result.log "linux.x86_64.7._pytransform.so"
 
 csih_inform "Case CP-4: cross publish by project without cross-protection"
 $PYARMOR config --cross-protection 0 $PROPATH >result.log 2>&1
@@ -93,7 +100,7 @@ check_return_value
 
 $PYARMOR build -B --platform linux.x86_64 $PROPATH >result.log 2>&1
 check_return_value
-check_file_content result.log "linux.x86_64._pytransform.so"
+check_file_content result.log "linux.x86_64.7._pytransform.so"
 
 csih_inform "Case CP-5: cross publish by project with custom cross protection"
 echo "print('This is customized protection code')" > test_protect.pt
@@ -104,11 +111,12 @@ check_file_content $PROPATH/.pyarmor_config "test_protect.pt"
 
 $PYARMOR build -B --platform linux.x86_64 $PROPATH >result.log 2>&1
 check_return_value
-check_file_content result.log "linux.x86_64._pytransform.so"
+check_file_content result.log "linux.x86_64.7._pytransform.so"
 
 echo ""
 echo "-------------------- Test Cross Publish END ------------------------"
 echo ""
+}
 
 # ======================================================================
 #
@@ -116,6 +124,8 @@ echo ""
 #
 # ======================================================================
 
+test_cross_runtime()
+{
 echo ""
 echo "-------------------- Test Cross Runtime --------------------"
 echo ""
@@ -126,7 +136,7 @@ csih_inform "Case CR-1: cross runtime with one platform windows.x86"
 rm -rf $OUTPUT
 $PYARMOR runtime --platform windows.x86 >result.log 2>&1
 check_return_value
-check_file_content result.log "windows/x86/_pytransform.dll"
+check_file_content result.log "windows/x86/7/_pytransform.dll"
 check_file_exists $OUTPUT/pytransform/_pytransform.dll
 
 csih_inform "Case CR-2: cross runtime with one platform alpine.x86_64"
@@ -185,6 +195,52 @@ check_file_content result.log "Multi platforms conflict, platform windows.x86_64
 echo ""
 echo "-------------------- Test Cross Runtime END ------------------------"
 echo ""
+}
+
+# ======================================================================
+#
+# Start Testing
+#
+# ======================================================================
+
+echo ""
+echo "-------------------- Test Trial Version ------------------------"
+echo ""
+
+for PYTHON in ${PYTHON_LIST} ; do
+
+PYARMOR="${PYTHON} pyarmor.py"
+
+csih_inform "Python is $PYTHON"
+csih_inform "Tested Package: $pkgfile"
+csih_inform "PyArmor is $PYARMOR"
+
+bootstrap
+test_cross_publish
+test_cross_runtime
+
+done
+
+echo ""
+echo "-------------------- Test Normal Version ------------------------"
+echo ""
+
+for PYTHON in ${PYTHON_LIST} ; do
+
+PYARMOR="${PYTHON} pyarmor.py"
+
+csih_inform "Python is $PYTHON"
+csih_inform "PyArmor is $PYARMOR"
+
+csih_inform "0. Register keyfile"
+$PYARMOR register ../../data/pyarmor-test-0001.zip >result.log 2>&1
+check_return_value
+
+bootstrap
+test_cross_publish not
+test_cross_runtime not
+
+done
 
 # ======================================================================
 #

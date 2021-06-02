@@ -22,7 +22,9 @@ A license code is required to unlock all the above limitations.
 There are 2 basic types of licenses issued for the software:
 
 * A personal license for home users. The user purchases one license to
-  use the software on his own computer.
+  use the software on his own computer. When placing an order of this
+  kind of license, please fill real name as registration name, this
+  software is only authorized to this registration name.
 
   Home users may use their personal license to obfuscate all the
   python scripts which are property of the license owner, to generate
@@ -34,7 +36,9 @@ There are 2 basic types of licenses issued for the software:
 
 * A enterprise license for business users. The user purchases one
   license to use the software for one product serials of an
-  organization.
+  organization. When placing an order of this kind of license, please
+  fill orginization name plus product name, this software is only
+  authorized to this registration name.
 
   One product serials include the current version and any other latter
   versions of the same product.
@@ -51,10 +55,7 @@ There are 2 basic types of licenses issued for the software:
   product serials.
 
   In any case, the software is only used to obfuscate the Python scripts
-  owned by the authorized person or enterprise. For example, if PyCharm
-  purchases one license, it's no problem to obufscate any Python script
-  of PyCharm self, but it's not allowed to apply this license to the Python
-  scripts just written in the PyCharm by someone else.
+  owned by the authorized person or enterprise.
 
 Purchase
 --------
@@ -67,12 +68,19 @@ Or open the following url in any web browser
 
 https://order.shareit.com/cart/add?vendorid=200089125&PRODUCT[300871197]=1
 
-A registration file generally named "pyarmor-regcode-1.txt" will be sent by
+For personal license, please fill the registeration name with real name when
+placing an order.
+
+For enterprise license, please fill the registeration name with enterprise name,
+and also fill "License To Product" with the product name which will use this
+software.
+
+A registration file generally named "pyarmor-regcode-xxxx.txt" will be sent by
 email immediately after payment is completed successfully.
 
 Save it to disk, then run the following command to register PyArmor
 
-    pyarmor register /path/to/pyarmor-regcode-1.txt
+    pyarmor register /path/to/pyarmor-regcode-xxxx.txt
 
 Check the registration information:
 
@@ -84,7 +92,7 @@ version, then obfuscate them again.
 .. note::
 
     If the version of PyArmor < 6.5.2, please open the registration file
-    "pyarmor-regcode-1.txt" by any text editor, following the guide in it to
+    "pyarmor-regcode-xxxx.txt" by any text editor, following the guide in it to
     register PyArmor
 
 .. important::

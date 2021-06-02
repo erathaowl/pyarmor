@@ -51,6 +51,7 @@ from config import dll_ext, dll_name, entry_lines, protect_code_template, \
 
 PYARMOR_PATH = os.getenv('PYARMOR_PATH', os.path.dirname(__file__))
 PYARMOR_HOME = os.getenv('PYARMOR_HOME', os.path.join('~', '.pyarmor'))
+PYARMOR_TIMEOUT = float(os.getenv('PYARMOR_TIMEOUT', '6.0'))
 PLATFORM_PATH = os.path.join(PYARMOR_PATH, pytransform.plat_path)
 
 HOME_PATH = os.path.abspath(os.path.expanduser(PYARMOR_HOME))
@@ -161,7 +162,7 @@ def pytransform_bootstrap(capsule=None, force=False):
         make_capsule(capsule)
 
 
-def _get_old_remote_file(path, timeout=3.0):
+def _get_old_remote_file(path, timeout=6.0):
     for prefix in platform_old_urls:
         url = '/'.join([prefix, path])
         logging.info('Getting remote file: %s', url)
@@ -179,12 +180,12 @@ def _get_user_secret(data):
     return b64encode(bytearray(secret)).decode()
 
 
-def _get_remote_file(path, timeout=3.0, prefix=None):
+def _get_remote_file(path, timeout=6.0, prefix=None):
     rcode = get_registration_code()
     if not rcode:
         logging.warning('The trial version could not download '
                         'the latest platform library')
-        return _get_old_remote_file(path)
+        return _get_old_remote_file(path, timeout=PYARMOR_TIMEOUT)
 
     rcode = rcode.replace('-sn-1.txt', '')
 
@@ -203,7 +204,7 @@ def _get_remote_file(path, timeout=3.0, prefix=None):
     req = Request(url)
     auth = b64encode(('%s:%s' % (rcode, secret)).encode())
     req.add_header('Authorization', 'Basic ' + auth.decode())
-    return urlopen(req, None, timeout)
+    return _urlopen(req, None, timeout)
 
 
 def _get_platform_list(platid=None):
@@ -212,7 +213,7 @@ def _get_platform_list(platid=None):
 
     cached = os.path.exists(filename)
     if not cached:
-        res = _get_remote_file(platform_config)
+        res = _get_remote_file(platform_config, timeout=PYARMOR_TIMEOUT)
         if res is None:
             raise RuntimeError('No platform list file %s found' % filename)
         if not os.path.exists(CROSS_PLATFORM_PATH):
@@ -229,7 +230,7 @@ def _get_platform_list(platid=None):
     if not ver.split('.')[0] == core_version.split('.')[0]:
         if not get_registration_code():
             logging.warning('The trial version could not download the latest'
-                            ' core libraries, r41.15 is OK for trial version')
+                            ' core libraries, tag r41.15a is always used')
         elif cached:
             logging.info('Remove cached platform list file %s', filename)
             os.remove(filename)
@@ -286,7 +287,7 @@ def download_pytransform(platid, output=None, url=None, firstonly=False):
         makedirs(dest, exist_ok=True)
 
         logging.info('Downloading library file for %s ...', p['id'])
-        res = _get_remote_file(path, prefix=url)
+        res = _get_remote_file(path, timeout=PYARMOR_TIMEOUT, prefix=url)
 
         if res is None:
             raise RuntimeError('Download library file failed')
@@ -474,12 +475,13 @@ def _get_library_filename(platid, checksums=None):
     if n < 3:
         raise RuntimeError('Missing features in platform name %s' % platid)
 
-    if (xlist[2] == '7') and xlist[1] in ('x86', 'x86_64') and \
-       xlist[0] in ('windows', 'darwin', 'linux'):
-        path = os.path.join(PLATFORM_PATH, *xlist[:2])
-        names = [x for x in os.listdir(path) if x.startswith('_pytransform.')]
-        if names:
-            return os.path.join(path, names[0])
+    # Always download core libraries
+    # if (xlist[2] == '7') and xlist[1] in ('x86', 'x86_64') and \
+    #    xlist[0] in ('windows', 'darwin', 'linux'):
+    #     path = os.path.join(PLATFORM_PATH, *xlist[:2])
+    #     names = [x for x in os.listdir(path) if x.startswith('_pytransform.')]
+    #     if names:
+    #         return os.path.join(path, names[0])
 
     names = None
     path = os.path.join(CROSS_PLATFORM_PATH, *xlist)
@@ -1060,7 +1062,7 @@ def query_keyinfo(key):
 
     try:
         logging.debug('Query url: %s', key_url % key)
-        res = _urlopen(key_url % key, licdata, timeout=3.0)
+        res = _urlopen(key_url % key, licdata, timeout=6.0)
         data = json_loads(res.read().decode())
     except Exception as e:
         return '\nError: %s' % str(e)
@@ -1614,12 +1616,9 @@ def _urlopen(*args, **kwargs):
     try:
         return urlopen(*args, **kwargs)
     except Exception:
-        if args[0].startswith('https:') and 'context' not in kwargs:
-            from ssl import _create_unverified_context
-            kwargs['context'] = _create_unverified_context()
-            return urlopen(*args, **kwargs)
-        else:
-            raise
+        from ssl import _create_unverified_context
+        kwargs['context'] = _create_unverified_context()
+        return urlopen(*args, **kwargs)
 
 
 def makedirs(path, exist_ok=False):

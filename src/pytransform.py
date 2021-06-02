@@ -22,7 +22,7 @@ plat_table = (
     ('darwin', ('darwin',)),
     ('ios', ('ios',)),
     ('linux', ('linux*',)),
-    ('freebsd', ('freebsd*', 'openbsd*')),
+    ('freebsd', ('freebsd*', 'openbsd*', 'isilon onefs')),
     ('poky', ('poky',)),
 )
 
@@ -295,17 +295,22 @@ def _load_library(path=None, is_runtime=0, platid=None, suffix='', advanced=0):
         else os.path.normpath(path)
 
     plat = platform.system().lower()
+    for alias, platlist in plat_table:
+        if _match_features(platlist, plat):
+            plat = alias
+            break
+
     name = '_pytransform' + suffix
     if plat == 'linux':
         filename = os.path.abspath(os.path.join(path, name + '.so'))
-    elif plat == 'darwin':
+    elif plat in ('darwin', 'ios'):
         filename = os.path.join(path, name + '.dylib')
     elif plat == 'windows':
         filename = os.path.join(path, name + '.dll')
-    elif plat == 'freebsd':
+    elif plat in ('freebsd', 'poky'):
         filename = os.path.join(path, name + '.so')
     else:
-        raise PytransformError('Platform %s not supported' % plat)
+        filename = None
 
     if platid is not None and os.path.isfile(platid):
         filename = platid
@@ -313,6 +318,9 @@ def _load_library(path=None, is_runtime=0, platid=None, suffix='', advanced=0):
         libpath = platid if platid is not None and os.path.isabs(platid) else \
             os.path.join(path, plat_path, format_platform(platid))
         filename = os.path.join(libpath, os.path.basename(filename))
+
+    if filename is None:
+        raise PytransformError('Platform %s not supported' % plat)
 
     if not os.path.exists(filename):
         raise PytransformError('Could not find "%s"' % filename)
